@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<style>
+</style>
+<head>
+<meta charset="UTF-8">
+<title>LED Controler - Configuration</title>
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.5.0/css/all.css" integrity="sha384-B4dIYHKNBt8Bc12p+WXckhzcICo0wtJAoU8YZTY5qE0Id1GSseTk6S+L3BlXeVIU" crossorigin="anonymous"></head>
+<body onload="lade_Konfig()">
+Achtung: Es braucht ein Netzteil mit mindestens <strong id="Watt">xx</strong> Watt !
+<form action="/Set_Konfig">
+<!-- <form action="/action_page.php"> -->
+  <p id="N_LEDs">
+	  Anzahl LEDs: <input onchange="UpdateWatt()" name="N_LEDs" type="number" min="2"  max="1024">
+  </p>
+  <p id="BRIGHT">
+	  Grundhelligkeit: <input onchange="UpdateWatt()" name="BRIGHT" type="number" min="1"  max="255">
+  </p>
+Änderungen brauchen einen Neustart (passiert automatisch beim Click auf Ändern)
+  <br>
+  <input id="Aendern" type="submit" value="Ändern">
+</form>
+<script>
+var N_LEDs =  document.getElementById("N_LEDs");
+var BRIGHT =  document.getElementById("BRIGHT");
+var Watt = document.getElementById("Watt");
+var Aendern = document.getElementById("Aendern");
+var Konfigdaten;
+var xmthldummy = '{ "Admin": "0", "N_LEDs": 30,"BRIGHT":"64" }';
+var xhttp = new XMLHttpRequest();
+  xhttp.onreadystatechange = function() {
+    if (this.readyState == 4) {
+		if( this.status == 404) { 
+			Konfigdaten = JSON.parse(xmthldummy);
+        }
+		if( this.status == 200) {
+			Konfigdaten = JSON.parse(this.responseText);
+		}
+        if (Konfigdaten.Admin == "1") {
+        	Aendern.disabled = false;
+        } else {
+        	Aendern.disabled = true;
+        }
+		N_LEDs.children[0].value = Konfigdaten.N_LEDs;
+		BRIGHT.children[0].value = Konfigdaten.BRIGHT;
+        UpdateWatt();
+	}
+}
+function UpdateWatt() {
+  Watt.innerText = (N_LEDs.children[0].value*BRIGHT.children[0].value/256*0.06*5).toFixed(0);
+}
+function lade_Konfig() {
+  xhttp.open("GET", "/Lade_Konfig", true);
+  xhttp.send();
+}
+</script>
+</body>
+</html>

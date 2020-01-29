@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+<style>
+</style>
+<head>
+<meta charset="UTF-8">
+<title>LED Controler - Controler</title>
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.5.0/css/all.css" integrity="sha384-B4dIYHKNBt8Bc12p+WXckhzcICo0wtJAoU8YZTY5qE0Id1GSseTk6S+L3BlXeVIU" crossorigin="anonymous"></head>
+<body onload="lade_Werte()">
+<form action="/Set_Values">
+<!-- <form action="/action_page.php"> -->
+  <select onchange="Neuer_Modus()"id="Modus" name="Modus">
+<!--    <option value="Aus">Aus</option>
+    <option value="Weiss">Weiss</option>
+    <option value="Farbe">Farbe</option>
+    <option value="Verlauf">Verlauf</option> -->
+  </select>
+  <p id="H1">
+	  Helligkeit: <input name="Helligkeit1" type="range" min="0"  max="255">
+  </p>
+  <p id="F1">
+	  Farbe: <input name="Farbe1" type="color">
+  </p>
+  <p id="F2">
+	  Farbe: <input name="Farbe2" type="color">
+  </p>
+  <p id="S">
+	  Speed: <input name="Speed" type="range" min="0"  max="1000">
+  </p>
+  <br><br>
+  <input type="submit">
+</form>
+<script>
+var Modus = document.getElementById("Modus");
+var H1 =  document.getElementById("H1");
+var F1 =  document.getElementById("F1");
+var F2 =  document.getElementById("F2");
+var S  =  document.getElementById("S");
+var xmthldummy = '{ "Modi":[ {"Modus":"Aus", "H": "0", "F1": "0", "F2": "0", "S": "0" },{"Modus":"Weiss", "H": "1", "F1": "0", "F2": "0", "S": "0"  }, {"Modus":"Farbe", "H": "0", "F1": "1", "F2": "0", "S": "0"  },{"Modus":"Verlauf", "H": "0", "F1": "1", "F2": "1", "S": "1" }],"Modus":"Weiss", "H": "64", "F1": "#123456", "F2": "#f0f0f0", "S": "100"  }';
+var ModiListe;
+var xhttp = new XMLHttpRequest();
+  xhttp.onreadystatechange = function() {
+    if (this.readyState == 4) {
+		if( this.status == 404) { 
+			ModiListe = JSON.parse(xmthldummy);
+        }
+		if( this.status == 200) {
+			ModiListe = JSON.parse(this.responseText);
+		}
+      var option;
+      for (i = 0; i < ModiListe.Modi.length; i++) {
+        option = document.createElement("option");
+        option.text = ModiListe.Modi[i].Modus;
+        Modus.add(option);
+      } 
+	}
+    Modus.value = ModiListe.Modus;
+    H1.children[0].value = ModiListe.H;
+    F1.children[0].value = ModiListe.F1;
+    F2.children[0].value = ModiListe.F2;
+    S.children[0].value = ModiListe.S;
+    Neuer_Modus();
+}
+function Neuer_Modus() {
+  for (i = 0; i < ModiListe.Modi.length; i++) {
+    if(ModiListe.Modi[i].Modus == Modus.value)  {
+      if(ModiListe.Modi[i].H == "0") {
+          H1.style.display = "none";
+      } else {
+          H1.style.display = "inline";
+      }
+      if(ModiListe.Modi[i].F1 == "0") {
+          F1.style.display = "none";
+      } else {
+          F1.style.display = "inline";
+      }
+      if(ModiListe.Modi[i].F2 == "0") {
+          F2.style.display = "none";
+      } else {
+          F2.style.display = "inline";
+      }
+      if(ModiListe.Modi[i].S == "0") {
+          S.style.display = "none";
+      } else {
+          S.style.display = "inline";
+      }
+    }
+  }
+}
+function lade_Werte() {
+  xhttp.open("GET", "/ModiListe", true);
+  xhttp.send();
+}
+</script>
+</body>
+</html>
