@@ -1,7 +1,6 @@
 #include <EEPROM.h>
 #include <Adafruit_NeoPixel.h>
 
-
 #include "main.h"
 #include "Controler.h"
 
@@ -15,16 +14,34 @@
 #define GROESSE_ALLES     POS_BRIGHTNESS + sizeof(_Brightness)
 
 // Pin fuer die NeoPixels
-#define LED_PIN     2
+
+#ifdef IST_ESP01
+//#define LED_PIN     2 // RX
+#define LED_PIN     1 // TX
+#endif // IST_ESP01
+#ifdef IST_SONOFF // Achtung: nicht allgemein für SONOFF gültig
+#define LED_PIN     3
+#endif // IST_SONOFF
+#ifdef IST_NODEMCU32
+#define LED_PIN     27 // 14
+#endif // IST_NODEMCU32
+
+// "Neue" WS2812B: 800kHz (passt auf die 18.Feier Eva LEDs)
+//#define LED_STRIP_TYP (NEO_GRB + NEO_KHZ800)
+// WS2812: 400 kHz
+//#define LED_STRIP_TYP (NEO_GRB + NEO_KHZ400)
+// "Neue" SK6812(~WS2812B) RGBW (WarmWhite):
+// Led Strip SK6812(Similar WS2812B) RGBW 3m 60Leds/m IP30 DC5V
+#define LED_STRIP_TYP (NEO_GRBW + NEO_KHZ800)
+
 
 Adafruit_NeoPixel *strip;
-// Argument 1 = Number of pixels in NeoPixel strip
-// Argument 2 = Arduino pin number (most are valid)
-// Argument 3 = Pixel type flags, add together as needed:
-//   NEO_KHZ800  800 KHz bitstream (most NeoPixel products w/WS2812 LEDs)
-//   NEO_GRB     Pixels are wired for GRB bitstream (most NeoPixel products)
 
 LichtModi::LichtModi() {
+}
+
+void LichtModi::Beginn() {
+  D_PRINTLN("LichtModi Beginn");
   EEPROM.begin(GROESSE_ALLES);
   EEPROM.get(POS_MODUS, _Modus);
   EEPROM.get(POS_HELLIGKEIT, _Helligkeit);
@@ -35,18 +52,38 @@ LichtModi::LichtModi() {
   EEPROM.get(POS_SPEED, _Speed);
   EEPROM.get(POS_N_LEDS, _n_Leds);
   EEPROM.get(POS_BRIGHTNESS, _Brightness);
-}
-
-void LichtModi::Beginn() {
-  strip = new Adafruit_NeoPixel(1024, LED_PIN, NEO_GRB + NEO_KHZ800);
-  strip->begin();           // INITIALIZE NeoPixel strip object (REQUIRED)
-  strip->show();            // Turn OFF all pixels ASAP
+  if ((_n_Leds < 1) || (_n_Leds > 1024)) {
+    D_PRINTLN("EEPROM nicht richtig initialisiert, initiere neu");
+    _Modus = Aus;
+    _Helligkeit = 64;
+    _Farbe1 = 0x0f0f0f;
+    Set_Farbe1(_Farbe1);
+    _Farbe2 = 0x0f0f0f;
+    Set_Farbe2(_Farbe2);
+    _Speed = 10;
+    _n_Leds = 1;
+    _Brightness = 32;
+    EEPROM.put(POS_MODUS, _Modus);
+    EEPROM.put(POS_HELLIGKEIT, _Helligkeit);
+    EEPROM.put(POS_FARBE1, _Farbe1);
+    EEPROM.put(POS_FARBE2, _Farbe2);
+    EEPROM.put(POS_SPEED, _Speed);
+    EEPROM.put(POS_N_LEDS, _n_Leds);
+    EEPROM.put(POS_BRIGHTNESS, _Brightness);
+    EEPROM.commit();
+  }
+  strip = new Adafruit_NeoPixel(1024, LED_PIN, LED_STRIP_TYP);
+  strip->begin();
+  strip->show();
+  delay(1);
   delete strip;
-  
-  strip = new Adafruit_NeoPixel(_n_Leds, LED_PIN, NEO_GRB + NEO_KHZ800);
-  strip->begin();           // INITIALIZE NeoPixel strip object (REQUIRED)
-  strip->show();            // Turn OFF all pixels ASAP
-  strip->setBrightness(_Brightness); // Set BRIGHTNESS to about 1/5 (max = 255)
+  D_PRINT("strip (0)");
+
+  strip = new Adafruit_NeoPixel(_n_Leds, LED_PIN, LED_STRIP_TYP);
+  strip->begin();
+  strip->show();
+  strip->setBrightness(_Brightness);
+  D_PRINTLN("ENDE LichtModi");
 }
 
 void LichtModi::Bereit() {
@@ -60,7 +97,8 @@ void LichtModi::Tick() {
       strip->show();
       break;
     case Weiss:
-      strip->fill(strip->Color(strip->gamma8(_Helligkeit), strip->gamma8(_Helligkeit), strip->gamma8(_Helligkeit)));
+      // strip->fill(strip->Color(strip->gamma8(_Helligkeit), strip->gamma8(_Helligkeit), strip->gamma8(_Helligkeit)));
+      strip->fill(strip->Color(0, 0, 0, strip->gamma8(_Helligkeit)));
       strip->show();
       break;
     case Farbe:
@@ -69,6 +107,9 @@ void LichtModi::Tick() {
       break;
     case Verlauf:
       Tick_Verlauf();
+      break;
+    case Verlauf2:
+      Tick_Verlauf2();
       break;
   }
 }
@@ -89,6 +130,8 @@ void LichtModi::Set_Modus(const char* mode, bool commit) {
     _Modus = Farbe;
   } else if (strcmp(mode, "Verlauf") == 0) {
     _Modus = Verlauf;
+  } else if (strcmp(mode, "Verlauf2") == 0) {
+    _Modus = Verlauf2;
   } else
     _Modus = Aus;
   EEPROM.put(POS_MODUS, _Modus);
@@ -171,6 +214,9 @@ const char* LichtModi::Get_Modus_Name() {
     case Verlauf:
       return "Verlauf";
       break;
+    case Verlauf2:
+      return "Verlauf2";
+      break;
   }
 }
 
@@ -204,51 +250,12 @@ void LichtModi::Tick_Verlauf() {
   uint32_t F;
 
   uint8_t r, g, b;
-#if 0 // Versuch 0
-    uint8_t r,g,b;
-    uint8_t r1 = (_Farbe1>>16)&0xff;
-    uint8_t g1 = (_Farbe1>>8)&0xff;
-    uint8_t b1 = (_Farbe1)&0xff;
-    uint8_t r2 = (_Farbe2>>16)&0xff;
-    uint8_t g2 = (_Farbe2>>8)&0xff;
-    uint8_t b2 = (_Farbe2)&0xff;
-    uint32_t F;
-    uint16_t n = strip->numPixels();
-    float nn = (float)(n-1);
-    for (int i = 0; i < n; i++) {
-      r = r1 + (r2-r1)*i/nn;
-      g = g1 + (g2-g1)*i/nn;
-      b = b1 + (b2-b1)*i/nn;
-      F = (r<<16)+(g<<8)+b;
-      strip->setPixelColor(i, F);
-    }
-#endif // Versuch 0
-#if 0 // Versuch 1
   uint16_t n = _n_Leds; // strip.numPixels();
-  float nn = (float)(n - 1) / 2;
-  int delta = round(millis() / 1000.*((uint16_t)_Speed + 1) * ((uint16_t)_Speed + 1) / n);
-  for (int i = 0; i < n / 2; i++) {
-    int j = (i + delta) % n;
-    int j2 = (n - i + delta) % n;
-    h = _h1 + (_h2 - _h1) * i / n;
-    s = _s1 + (_s2 - _s1) * i / n;
-    v = _v1 + (_v2 - _v1) * i / n;
-    HSVtoRGB(fr, fg, fb, h, s, v);
-    r = fr * 256;
-    g = fg * 256;
-    b = fb * 256;
-    F = (r << 16) + (g << 8) + b;
-    strip->setPixelColor(j, F);
-    // symetrisch
-    strip->setPixelColor(j2, F);
-  }
-#endif // Versuch 1
-  uint16_t n = _n_Leds; // strip.numPixels();
-  float t_x_v = millis()*_Speed / 1000 * n / 256; // Zeit * Geschwindigkeit --> Weg(t)
+  float t_x_v = millis() * _Speed / 1000 * n / 256; // Zeit * Geschwindigkeit --> Weg(t)
   for (int i = 0; i < n; i++) {
-    h = f(i,t_x_v,_h1,_h2,n);
-    s = f(i,t_x_v,_s1,_s2,n);
-    v = f(i,t_x_v,_v1,_v2,n);
+    h = f(i, t_x_v, _h1, _h2, n);
+    s = f(i, t_x_v, _s1, _s2, n);
+    v = f(i, t_x_v, _v1, _v2, n);
     HSVtoRGB(fr, fg, fb, h, s, v);
     r = fr * 256;
     g = fg * 256;
@@ -259,6 +266,19 @@ void LichtModi::Tick_Verlauf() {
   strip->show();
 }
 
+void LichtModi::Tick_Verlauf2() {
+  uint16_t  h;
+  uint8_t s, v;
+  uint16_t n = _n_Leds; // strip.numPixels();
+  float t_x_v = millis() * _Speed / 1000 * n / 256; // Zeit * Geschwindigkeit --> Weg(t)
+  for (int i = 0; i < n; i++) {
+    h = 65535*f(i, t_x_v, _h1, _h2, n);
+    s = 255*f(i, t_x_v, _s1, _s2, n);
+    v = 255*f(i, t_x_v, _v1, _v2, n);
+    strip->setPixelColor(i, strip->ColorHSV(h,s,v));
+  }
+  strip->show();
+}
 
 /*! \brief Convert RGB to HSV color space
 
@@ -365,13 +385,13 @@ void HSVtoRGB(float& fR, float& fG, float& fB, float& fH, float& fS, float& fV) 
 }
 
 float g(int x, float t_x_v, uint16_t n) {
-  return ((int)(t_x_v-x))%(n);
+  return ((int)(t_x_v - x)) % (n);
 }
 
 float f(int x, float t_x_v, float a, float b, uint16_t n) {
-   if (g(x,t_x_v,n)<n/2) {
-    return a+(b-a)*g(x,t_x_v,n)/(n/2);    
-   } else {
-    return b+(a-b)*g(x-(n/2),t_x_v,n)/(n/2);    
-   }
+  if (g(x, t_x_v, n) < n / 2) {
+    return a + (b - a) * g(x, t_x_v, n) / (n / 2);
+  } else {
+    return b + (a - b) * g(x - (n / 2), t_x_v, n) / (n / 2);
+  }
 }

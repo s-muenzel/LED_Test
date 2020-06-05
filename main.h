@@ -1,10 +1,11 @@
 #ifndef _LICHTWECKER_H
 #define _LICHTWECKER_H
 
-//#define DEBUG_SERIAL
+#define DEBUG_SERIAL
 
 //#define IST_SONOFF
-#define IST_ESP01
+//#define IST_ESP01
+#define IST_NODEMCU32 // gilt auch für Lolin D32
 
 
 #ifdef IST_SONOFF
@@ -15,8 +16,13 @@
 #  define LED_AN LOW
 #  define LED_AUS HIGH
 # else
-#  define LED_AN HIGH
-#  define LED_AUS LOW
+#  ifdef IST_NODEMCU32
+#   define LED_AN LOW
+#   define LED_AUS HIGH
+#  else
+#   define LED_AN HIGH
+#   define LED_AUS LOW
+#  endif
 # endif
 #endif
 
@@ -34,5 +40,7 @@
 #define D_PRINTLN(...)
 #define D_PRINTF(...)
 #endif
+
+const char HostName[] = "AussenLED";
 
 #endif // _LICHTWECKER_H

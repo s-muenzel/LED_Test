@@ -1,11 +1,26 @@
 #include "main.h"
-
+#include "Zugangsinfo.h"
 #include "WebS.h"
 
 #include <FS.h>
-#include <ESP8266WebServer.h>
 
+
+#if defined(IST_ESP01) || defined(IST_SONOFF)
+#include <ESP8266WebServer.h>
+#endif // IST_SONOFF
+
+#ifdef IST_NODEMCU32
+#include <WebServer.h>
+#include <SPIFFS.h>
+#endif // IST_NODEMCU32
+
+#if defined(IST_ESP01) || defined(IST_SONOFF)
 ESP8266WebServer server(80);
+#endif
+#ifdef IST_NODEMCU32
+WebServer server(80);
+#endif
+
 
 bool __Admin_Mode_An;
 
@@ -88,18 +103,18 @@ void handleSet_Values() {
   //  String Erg("Werte: ");
   for (int i = 0; i < server.args(); i++) {
     if (server.argName(i) == "Modus") {
-      __Modus.Set_Modus(server.arg(i).c_str());
-      //      if (server.arg(i) == "Aus") {
-      //        __Modus.Set_Modus(LichtModi::Aus);
-      //      } else if (server.arg(i) == "Weiss") {
-      //        __Modus.Set_Modus(LichtModi::Weiss);
-      //      } else if (server.arg(i) == "Farbe") {
-      //        __Modus.Set_Modus(LichtModi::Farbe);
-      //      } else if (server.arg(i) == "Verlauf") {
-      //        __Modus.Set_Modus(LichtModi::Verlauf);
-      //      }
+     __Modus.Set_Modus(server.arg(i).c_str());
+      if (server.arg(i) == "Aus") {
+        __Modus.Set_Modus(LichtModi::Aus);
+      } else if (server.arg(i) == "Weiss") {
+        __Modus.Set_Modus(LichtModi::Weiss);
+      } else if (server.arg(i) == "Farbe") {
+        __Modus.Set_Modus(LichtModi::Farbe);
+      } else if (server.arg(i) == "Verlauf") {
+        __Modus.Set_Modus(LichtModi::Verlauf);
+      }
     } else if (server.argName(i) == "Helligkeit1") {
-      __Modus.Set_Helligkeit(server.arg(i).toInt());
+     __Modus.Set_Helligkeit(server.arg(i).toInt());
     } else if (server.argName(i) == "Farbe1") {
       uint8_t r = StrToHex(server.arg(i).charAt(1)) * 16;
       r += StrToHex(server.arg(i).charAt(2));
@@ -107,7 +122,7 @@ void handleSet_Values() {
       g += StrToHex(server.arg(i).charAt(4));
       uint8_t b = StrToHex(server.arg(i).charAt(5)) * 16;
       b += StrToHex(server.arg(i).charAt(6));
-      __Modus.Set_Farbe1(r * 256 * 256 + g * 256 + b);
+     __Modus.Set_Farbe1(r * 256 * 256 + g * 256 + b);
     } else if (server.argName(i) == "Farbe2") {
       uint8_t r = StrToHex(server.arg(i).charAt(1)) * 16;
       r += StrToHex(server.arg(i).charAt(2));
@@ -115,12 +130,12 @@ void handleSet_Values() {
       g += StrToHex(server.arg(i).charAt(4));
       uint8_t b = StrToHex(server.arg(i).charAt(5)) * 16;
       b += StrToHex(server.arg(i).charAt(6));
-      __Modus.Set_Farbe2(r * 256 * 256 + g * 256 + b);
+     __Modus.Set_Farbe2(r * 256 * 256 + g * 256 + b);
     } else if (server.argName(i) == "Speed") {
-      __Modus.Set_Speed(server.arg(i).toInt());
+     __Modus.Set_Speed(server.arg(i).toInt());
     }
   }
-  __Modus.Commit();
+ __Modus.Commit();
   server.sendHeader("Location", "/Control");
   server.send(303, "text/html", "Location:/Control");
 }
@@ -175,7 +190,8 @@ void handleModiListe() {
            "{\"Modus\":\"Aus\",   \"H\": \"0\", \"F1\": \"0\", \"F2\": \"0\", \"S\": \"0\" },"\
            "{\"Modus\":\"Weiss\", \"H\": \"1\", \"F1\": \"0\", \"F2\": \"0\", \"S\": \"0\" },"\
            "{\"Modus\":\"Farbe\", \"H\": \"0\", \"F1\": \"1\", \"F2\": \"0\", \"S\": \"0\" },"\
-           "{\"Modus\":\"Verlauf\", \"H\": \"0\", \"F1\": \"1\", \"F2\": \"1\", \"S\": \"1\" }"\
+           "{\"Modus\":\"Verlauf\", \"H\": \"0\", \"F1\": \"1\", \"F2\": \"1\", \"S\": \"1\" },"\
+           "{\"Modus\":\"Verlauf2\", \"H\": \"0\", \"F1\": \"1\", \"F2\": \"1\", \"S\": \"1\" }"\
            "], \"Modus\": \"%s\", \"H\": \"%d\", \"F1\": \"#%06x\", \"F2\": \"#%06x\", \"S\": \"%d\"}",
            __Modus.Get_Modus_Name(), __Modus.Get_Helligkeit(), __Modus.Get_Farbe1(), __Modus.Get_Farbe2(), __Modus.Get_Speed());
   server.send(200, "application/json", temp);
@@ -206,15 +222,15 @@ void handleSet_Konfig() {
     if (server.argName(i) == "N_LEDs") {
       msg += "N_LEDs:";
       msg += server.arg(i).toInt();
-      __Modus.Set_n_Leds(server.arg(i).toInt());
+     __Modus.Set_n_Leds(server.arg(i).toInt());
     }
     if (server.argName(i) == "BRIGHT") {
       msg += "BRIGHT:";
       msg += server.arg(i).toInt();
-      __Modus.Set_Brightness(server.arg(i).toInt());
+     __Modus.Set_Brightness(server.arg(i).toInt());
     }
   }
-  __Modus.Commit();
+ __Modus.Commit();
   server.send(200, "text/plain", msg);
   ESP.restart();
 }
@@ -308,9 +324,16 @@ void handleDateien() {
     output += String("<form action='/Hochladen' method='post' enctype='multipart/form-data'><span><div class='Tag'><input type='file' name='name'></div></span><span><input class='button' type='submit' value='Upload'></span></form>");
   }
 
+#if defined(IST_ESP01) || defined(IST_SONOFF)
   Dir dir = SPIFFS.openDir("/");
   while (dir.next()) {
     File entry = dir.openFile("r");
+#endif
+#ifdef IST_NODEMCU32
+  File dir = SPIFFS.open("/");
+  File entry = dir.openNextFile();
+  while (entry) {
+#endif
     if (__Admin_Mode_An) {
       output += String("<form action='/Loeschen' method='post'>");
     }
@@ -324,6 +347,9 @@ void handleDateien() {
     }
     D_PRINTF("File '%s', Size %d\n", entry.name(), entry.size());
     entry.close();
+#ifdef IST_NODEMCU32
+    entry = dir.openNextFile();
+#endif
   }
   output += "</body></html>";
   server.send(200, "text/html", output);
@@ -340,12 +366,23 @@ void WebS::Beginn() {
   }
 #ifdef DEBUG_SERIAL
   {
+#if defined(IST_ESP01) || defined(IST_SONOFF)
     Dir dir = SPIFFS.openDir("/");
     while (dir.next()) {
+      File entry = dir.openFile("r");
       String fileName = dir.fileName();
       size_t fileSize = dir.fileSize();
       D_PRINTF("FS File: %s, size: %s\n", fileName.c_str(), formatBytes(fileSize).c_str());
     }
+#endif
+#ifdef IST_NODEMCU32
+    File dir = SPIFFS.open("/");
+    File entry = dir.openNextFile();
+    while (entry) {
+      D_PRINTF("FS File: %s, size: %s\n", entry.name(), formatBytes(entry.size()).c_str());
+      entry = dir.openNextFile();
+    }
+#endif
     D_PRINTF("\n");
   }
 #endif // DEBUG_SERIAL

@@ -10,7 +10,7 @@ class LichtModi {
 
     void Tick();
 
-    typedef enum { Aus, Weiss, Farbe, Verlauf } Modi;
+    typedef enum { Aus, Weiss, Farbe, Verlauf, Verlauf2 } Modi;
 
     void Set_Modus(Modi mode, bool commit = false);
     void Set_Modus(const char*mode, bool commit = false);
@@ -44,6 +44,7 @@ class LichtModi {
     uint8_t _Brightness;
 
     void Tick_Verlauf();
+    void Tick_Verlauf2();
 };
 
 #endif // _LichtModi

@@ -1,0 +1,8 @@
+{
+    "board": "esp32:esp32:nodemcu-32s",
+    "configuration": "FlashFreq=80,UploadSpeed=921600,PartitionScheme=min_spiffs,DebugLevel=none",
+    "programmer": "USBtinyISP",
+    "sketch": "LED_Test.ino",
+    "output": "C:/Users/muenstrq/AppData/Local/Temp/arduino_build_LED_Test",
+    "port": "COM3"
+}

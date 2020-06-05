@@ -11,12 +11,10 @@ OTA::OTA() {
 }
 
 void OTA::Beginn() {
-
-
   // Port defaults to 8266
   // ArduinoOTA.setPort(8266);
   // Hostname defaults to esp8266-[ChipID]
-  ArduinoOTA.setHostname("Lichtwand"); // überschreibt wohl den Aufruf von MDNS.begin()
+  ArduinoOTA.setHostname(HostName);
   // No authentication by default
   //  ArduinoOTA.setPassword("...");
   // Password can be set with it's md5 value as well
