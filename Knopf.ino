@@ -14,9 +14,9 @@
 #endif
 #ifdef IST_ESP32S
 // Pins für Rotary Encoder
-# define ROTARY_A_PIN  4 // braun
-# define ROTARY_B_PIN  2 // 35 // blau
-# define KNOPF_PIN     15 // schwarz
+# define ROTARY_A_PIN  4
+# define ROTARY_B_PIN  2
+# define KNOPF_PIN     15
 #endif
 
 #ifdef USE_ESP32ENCODER
@@ -41,7 +41,9 @@ void Knopf::Beginn() {
   ESP32Encoder::useInternalWeakPullResistors = true;
   encoder.clearCount();
   encoder.setCount(_Zaehler);
-  encoder.attachHalfQuad(ROTARY_A_PIN, ROTARY_B_PIN);
+  //  encoder.attachHalfQuad(ROTARY_A_PIN, ROTARY_B_PIN);
+  //  encoder.attachFullQuad(ROTARY_A_PIN, ROTARY_B_PIN);
+  encoder.attachSingleEdge(ROTARY_A_PIN, ROTARY_B_PIN);
 #endif //  USE_ESP32ENCODER
 }
 

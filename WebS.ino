@@ -4,24 +4,16 @@
 
 #include <FS.h>
 
-
 #ifdef ESP8266 // defined(IST_ESP01) || defined(IST_SONOFF)
 #include <ESP8266WebServer.h>
+ESP8266WebServer server(80);
 #endif // IST_SONOFF
 
-#ifdef ESP32 //  IST_NODEMCU32
+#ifdef ESP32
 #include <WebServer.h>
 #include <SPIFFS.h>
-#endif // IST_NODEMCU32
-
-#ifdef ESP8266 // defined(IST_ESP01) || defined(IST_SONOFF)
-ESP8266WebServer server(80);
-#endif
-#ifdef ESP32 // IST_NODEMCU32
 WebServer server(80);
-#endif
-
-
+#endif // ESP32
 
 bool __Admin_Mode_An;
 
@@ -325,16 +317,16 @@ void handleDateien() {
     output += String("<form action='/Hochladen' method='post' enctype='multipart/form-data'><span><div class='Tag'><input type='file' name='name'></div></span><span><input class='button' type='submit' value='Upload'></span></form>");
   }
 
-#ifdef ESP8266 // defined(IST_ESP01) || defined(IST_SONOFF)
+#ifdef ESP8266
   Dir dir = SPIFFS.openDir("/");
   while (dir.next()) {
     File entry = dir.openFile("r");
-#endif
-#ifdef ESP32 // IST_NODEMCU32
+#endif // ESP8266
+#ifdef ESP32
   File dir = SPIFFS.open("/");
   File entry = dir.openNextFile();
   while (entry) {
-#endif
+#endif // ESP32
     if (__Admin_Mode_An) {
       output += String("<form action='/Loeschen' method='post'>");
     }
@@ -350,7 +342,7 @@ void handleDateien() {
     entry.close();
 #ifdef ESP32
     entry = dir.openNextFile();
-#endif
+#endif // ESP32
   }
   output += "</body></html>";
   server.send(200, "text/html", output);
@@ -367,7 +359,7 @@ void WebS::Beginn() {
   }
 #ifdef DEBUG_SERIAL
   {
-#ifdef ESP8266 //  defined(IST_ESP01) || defined(IST_SONOFF)
+#ifdef ESP8266
     Dir dir = SPIFFS.openDir("/");
     while (dir.next()) {
       File entry = dir.openFile("r");
@@ -375,15 +367,15 @@ void WebS::Beginn() {
       size_t fileSize = dir.fileSize();
       D_PRINTF("FS File: %s, size: %s\n", fileName.c_str(), formatBytes(fileSize).c_str());
     }
-#endif
-#ifdef ESP32 // IST_NODEMCU32
+#endif // ESP8266
+#ifdef ESP32
     File dir = SPIFFS.open("/");
     File entry = dir.openNextFile();
     while (entry) {
       D_PRINTF("FS File: %s, size: %s\n", entry.name(), formatBytes(entry.size()).c_str());
       entry = dir.openNextFile();
     }
-#endif
+#endif // ESP32
     D_PRINTF("\n");
   }
 #endif // DEBUG_SERIAL

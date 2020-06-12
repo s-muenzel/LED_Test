@@ -7,7 +7,7 @@
 #ifdef ESP32
 #include <WiFi.h>
 #include <ESPmDNS.h>
-#endif // IST_NODEMCU32
+#endif // ESP32
 
 #include "main.h"
 #include "Zugangsinfo.h"
@@ -30,12 +30,12 @@ void Netzwerk::Beginn() {
   WiFi.hostname(HostName);
 #endif
   WiFi.mode(WIFI_STA);
-#ifdef  ESP32 // IST_NODEMCU32
+#ifdef  ESP32
   //  WiFi.setHostname(HostName);
   if (MDNS.begin(HostName)) {
     D_PRINT(" MDNS responder");
   }
-#endif // IST_NODEMCU32
+#endif // ESP32
 }
 
 void Netzwerk::Start() {

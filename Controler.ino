@@ -1,5 +1,6 @@
 #include <EEPROM.h>
-#include <Adafruit_NeoPixel.h>
+
+#define USE_NEOPIXELBUS
 
 #include "main.h"
 #include "Controler.h"
@@ -30,7 +31,8 @@
 #define LED_PIN     13
 #endif // IST_ESP32S
 
-
+#ifdef USE_ADAFRUIT_NEOPIXEL
+#include <Adafruit_NeoPixel.h>
 // "Neue" WS2812B: 800kHz (passt auf die 18.Feier Eva LEDs)
 //#define LED_STRIP_TYP (NEO_GRB + NEO_KHZ800)
 // WS2812: 400 kHz
@@ -38,9 +40,12 @@
 // "Neue" SK6812(~WS2812B) RGBW (WarmWhite):
 // Led Strip SK6812(Similar WS2812B) RGBW 3m 60Leds/m IP30 DC5V
 #define LED_STRIP_TYP (NEO_GRBW + NEO_KHZ800)
-
-
 Adafruit_NeoPixel *strip;
+#endif // USE_ADAFRUIT_NEOPIXEL
+#ifdef USE_NEOPIXELBUS
+#include <NeoPixelBus.h>
+NeoPixelBus<NeoGrbwFeature, Neo800KbpsMethod> *strip;
+#endif // USE_NEOPIXELBUS
 
 LichtModi::LichtModi() {
   PlusMinus_Mode = 0;
@@ -74,17 +79,26 @@ void LichtModi::Beginn() {
     EEPROM.put(POS_BRIGHTNESS, _Brightness);
     EEPROM.commit();
   }
+#ifdef USE_ADAFRUIT_NEOPIXEL
   strip = new Adafruit_NeoPixel(1024, LED_PIN, LED_STRIP_TYP);
   strip->begin();
   strip->show();
   delay(1);
   delete strip;
+#endif // USE_ADAFRUIT_NEOPIXEL
   D_PRINT("strip (0)");
 
+#ifdef USE_ADAFRUIT_NEOPIXEL
   strip = new Adafruit_NeoPixel(_n_Leds, LED_PIN, LED_STRIP_TYP);
   strip->begin();
   strip->show();
   strip->setBrightness(_Brightness);
+#endif // USE_ADAFRUIT_NEOPIXEL
+#ifdef USE_NEOPIXELBUS
+  strip = new NeoPixelBus<NeoGrbwFeature, Neo800KbpsMethod>(_n_Leds, LED_PIN);
+  strip->Begin();
+  strip->Show();
+#endif // USE_NEOPIXELBUS
   D_PRINTLN("ENDE LichtModi");
 }
 
@@ -95,17 +109,35 @@ void LichtModi::Tick() {
   switch (_Modus) {
     default:
     case Aus:
+
+#ifdef USE_ADAFRUIT_NEOPIXEL
       strip->fill();
       strip->show();
+#endif // USE_ADAFRUIT_NEOPIXEL
+#ifdef USE_NEOPIXELBUS
+      strip->ClearTo(RgbwColor(0));
+      strip->Show();
+#endif // USE_NEOPIXELBUS
       break;
     case Weiss:
-      // strip->fill(strip->Color(strip->gamma8(_Helligkeit), strip->gamma8(_Helligkeit), strip->gamma8(_Helligkeit)));
+#ifdef USE_ADAFRUIT_NEOPIXEL
       strip->fill(strip->Color(0, 0, 0, strip->gamma8(_Helligkeit)));
       strip->show();
+#endif // USE_ADAFRUIT_NEOPIXEL
+#ifdef USE_NEOPIXELBUS
+      strip->ClearTo(RgbwColor(_Helligkeit));
+      strip->Show();
+#endif // USE_NEOPIXELBUS
       break;
     case Farbe:
+#ifdef USE_ADAFRUIT_NEOPIXEL
       strip->fill(_Farbe1);
       strip->show();
+#endif // USE_ADAFRUIT_NEOPIXEL
+#ifdef USE_NEOPIXELBUS
+      strip->ClearTo(HtmlColor(_Farbe1));
+      strip->Show();
+#endif // USE_NEOPIXELBUS
       break;
     case Verlauf:
       Tick_Verlauf();
@@ -118,6 +150,7 @@ void LichtModi::Tick() {
 
 void LichtModi::Set_Modus(Modi mode, bool commit) {
   _Modus = mode;
+  D_PRINTF("Neuer Modus: %s\n", Get_Modus_Name());
   EEPROM.put(POS_MODUS, _Modus);
   if (commit)
     EEPROM.commit();
@@ -137,6 +170,7 @@ void LichtModi::Set_Modus(const char* mode, bool commit) {
     _Modus = Verlauf2;
   } else
     _Modus = Aus;
+  D_PRINTF("Neuer Modus: %s\n", Get_Modus_Name());
   EEPROM.put(POS_MODUS, _Modus);
   if (commit)
     EEPROM.commit();
@@ -147,23 +181,23 @@ void LichtModi::Next_Modus() {
   switch (_Modus) {
     default:
     case Aus:
-      _Modus = Weiss;
+      Set_Modus(Weiss);
       break;
     case Weiss:
-      _Modus = Farbe;
+      Set_Modus(Farbe);
       break;
     case Farbe:
-      _Modus = Verlauf;
+      Set_Modus(Verlauf);
       break;
     case Verlauf:
-      _Modus = Verlauf2;
+      Set_Modus(Verlauf2);
       break;
     case Verlauf2:
-      _Modus = Aus;
+      Set_Modus(Aus);
       break;
   }
-  EEPROM.put(POS_MODUS, _Modus);
-  EEPROM.commit();
+  //  EEPROM.put(POS_MODUS, _Modus);
+  //  EEPROM.commit();
   PlusMinus_Mode = 0;
 }
 
@@ -171,23 +205,23 @@ void LichtModi::Prev_Modus() {
   switch (_Modus) {
     default:
     case Aus:
-      _Modus = Verlauf2;
+      Set_Modus(Verlauf2);
       break;
     case Weiss:
-      _Modus = Aus;
+      Set_Modus(Aus);
       break;
     case Farbe:
-      _Modus = Weiss;
+      Set_Modus(Weiss);
       break;
     case Verlauf:
-      _Modus = Farbe;
+      Set_Modus(Farbe);
       break;
     case Verlauf2:
-      _Modus = Verlauf;
+      Set_Modus(Verlauf);
       break;
   }
-  EEPROM.put(POS_MODUS, _Modus);
-  EEPROM.commit();
+  //  EEPROM.put(POS_MODUS, _Modus);
+  //  EEPROM.commit();
   PlusMinus_Mode = 0;
 }
 
@@ -200,10 +234,11 @@ void LichtModi::Next_PlusMinus() {
       break;
     case Farbe:
       PlusMinus_Mode = (PlusMinus_Mode + 1) % 3;
-      D_PRINTF("Neuer PM_Modus: Farbe %s", PlusMinus_Mode);
+      D_PRINTF("Neuer PM_Modus: Farbe %d\n", PlusMinus_Mode);
       break;
     case Verlauf:
       PlusMinus_Mode = (PlusMinus_Mode + 1) % 5;
+      D_PRINTF("Neuer PM_Modus: Verlauf %d\n", PlusMinus_Mode);
       break;
     case Verlauf2:
       break;
@@ -216,40 +251,43 @@ void LichtModi::Plus() {
     case Aus:
       break;
     case Weiss:
-      if (_Helligkeit < 255) {
-        _Helligkeit++;
-        EEPROM.put(POS_HELLIGKEIT, _Helligkeit);
-        EEPROM.commit();
-      }
+      if (_Helligkeit <= 250) _Helligkeit += 5;
+      else _Helligkeit = 255;
+      EEPROM.put(POS_HELLIGKEIT, _Helligkeit);
+      EEPROM.commit();
       break;
     case Farbe:
       D_PRINTF("+F1: x%08x, ", _Farbe1);
       uint8_t r, g, b;
-      float fr, fg, fb;
+      r = (_Farbe1 & 0xff0000) >> 16;
+      g = (_Farbe1 & 0xff00) >> 8;
+      b = (_Farbe1 & 0xff);
       switch (PlusMinus_Mode) {
         case 0:
-          D_PRINTF("v1 von %f ->", _v1);
-          _v1 = _v1 + 0.05;
-          if (_v1 > 1) _v1 = 1;
-          D_PRINTF("%f ", _v1);
+          D_PRINTF("r von %02x ->", r);
+          if (r <= 250) r += 5;
+          else r = 255;
+          D_PRINTF("%02x ", r);
           break;
         case 1:
-          D_PRINTF("s1 von %f ->", _s1);
-          _s1 = _s1 + 0.05;
-          if (_s1 > 1) _s1 = 1;
-          D_PRINTF("%f ", _s1);
+          D_PRINTF("g von %02x ->", g);
+          if (g <= 250) g += 5;
+          else g = 255;
+          D_PRINTF("%02x ", g);
+          break;
         case 2:
-          D_PRINTF("h1 von %f ->", _s1);
-          _h1 = _h1 + 1;
-          if (_h1 > 360) _h1 -= 360;
-          D_PRINTF("%f ", _h1);
+          D_PRINTF("b von %02x ->", b);
+          if (b <= 250) b += 5;
+          else b = 255;
+          D_PRINTF("%02x ", b);
           break;
       }
-      HSVtoRGB(fr, fg, fb, _h1, _s1, _v1);
-      r = fr * 256;
-      g = fg * 256;
-      b = fb * 256;
       _Farbe1 = (r << 16) + (g << 8) + b;
+      float fr, fg, fb;
+      fr =  ((_Farbe1 >> 16) & 0xff) / 255.;
+      fg =  ((_Farbe1 >> 8) & 0xff) / 255.;
+      fb =  ((_Farbe1) & 0xff) / 255.;
+      RGBtoHSV(fr, fg, fb, _h1, _s1, _v1);
       D_PRINTF(" neu: x%08x\n", _Farbe1);
       EEPROM.put(POS_FARBE1, _Farbe1);
       EEPROM.commit();
@@ -262,6 +300,7 @@ void LichtModi::Plus() {
           break;
         case 1:
         case 2:
+        default:
           break;
       }
       break;
@@ -277,7 +316,10 @@ void LichtModi::Minus() {
       break;
     case Weiss:
       if (_Helligkeit > 0) {
-        _Helligkeit--;
+        D_PRINTF("-H: x%02x -> ", _Helligkeit );
+        if (_Helligkeit >= 5) _Helligkeit -= 5;
+        else _Helligkeit = 0;
+        D_PRINTF("%02x\n", _Helligkeit);
         EEPROM.put(POS_HELLIGKEIT, _Helligkeit);
         EEPROM.commit();
       }
@@ -285,32 +327,35 @@ void LichtModi::Minus() {
     case Farbe:
       D_PRINTF("-F1: x%08x, ", _Farbe1);
       uint8_t r, g, b;
-      float fr, fg, fb;
+      r = (_Farbe1 & 0xff0000) >> 16;
+      g = (_Farbe1 & 0xff00) >> 8;
+      b = (_Farbe1 & 0xff);
       switch (PlusMinus_Mode) {
         case 0:
-          D_PRINTF("v1 von %f ->", _v1);
-          _v1 = _v1 - 0.05;
-          if (_v1 < 0 ) _v1 = 0;
-          D_PRINTF("%f ", _v1);
+          D_PRINTF("r von %02x ->", r);
+          if (r >= 5) r -= 5;
+          else r = 0;
+          D_PRINTF("%02x ", r);
           break;
         case 1:
-          D_PRINTF("s1 von %f ->", _s1);
-          _s1 = _s1 - 0.05;
-          if (_s1 < 0 ) _s1 = 0;
-          D_PRINTF("%f ", _s1);
+          D_PRINTF("g von %02x ->", g);
+          if (g >= 5) g -= 5;
+          else g = 0;
+          D_PRINTF("%02x ", g);
           break;
         case 2:
-          D_PRINTF("h1 von %f ->", _h1);
-          _h1 = _h1 - 1;
-          if (_h1 < 0 ) _h1 += 360;
-          D_PRINTF("%f ", _h1);
+          D_PRINTF("b von %02x ->", b);
+          if (b >= 5) b -= 5;
+          else b = 0;
+          D_PRINTF("%02x ", b);
           break;
       }
-      HSVtoRGB(fr, fg, fb, _h1, _s1, _v1);
-      r = fr * 256;
-      g = fg * 256;
-      b = fb * 256;
       _Farbe1 = (r << 16) + (g << 8) + b;
+      float fr, fg, fb;
+      fr =  ((_Farbe1 >> 16) & 0xff) / 255.;
+      fg =  ((_Farbe1 >> 8) & 0xff) / 255.;
+      fb =  ((_Farbe1) & 0xff) / 255.;
+      RGBtoHSV(fr, fg, fb, _h1, _s1, _v1);
       D_PRINTF(" neu: x%08x\n", _Farbe1);
       EEPROM.put(POS_FARBE1, _Farbe1);
       EEPROM.commit();
@@ -453,21 +498,45 @@ void LichtModi::Tick_Verlauf() {
     g = fg * 256;
     b = fb * 256;
     F = (r << 16) + (g << 8) + b;
+#ifdef USE_ADAFRUIT_NEOPIXEL
     strip->setPixelColor(i, F);
+#endif // USE_ADAFRUIT_NEOPIXEL
+#ifdef USE_NEOPIXELBUS
+    strip->SetPixelColor(i, RgbwColor(HtmlColor(F)));
+#endif // USE_NEOPIXELBUS
   }
+#ifdef USE_ADAFRUIT_NEOPIXEL
   strip->show();
+#endif // USE_ADAFRUIT_NEOPIXEL
+#ifdef USE_NEOPIXELBUS
+  strip->Show();
+#endif // USE_NEOPIXELBUS
 }
 
 void LichtModi::Tick_Verlauf2() {
-  uint16_t  h;
-  uint8_t s, v;
   uint16_t n = _n_Leds;
   float t_x_v = millis() * _Speed / 1000 * n / 256; // Zeit * Geschwindigkeit --> Weg(t)
   for (int i = 0; i < n; i++) {
+#ifdef USE_ADAFRUIT_NEOPIXEL
+    uint16_t  h;
+    uint8_t s, v;
     h = 65535 * f(i, t_x_v, _h1, _h2, n);
     s = 255 * f(i, t_x_v, _s1, _s2, n);
     v = 255 * f(i, t_x_v, _v1, _v2, n);
     strip->setPixelColor(i, strip->ColorHSV(h, s, v));
+#endif // USE_ADAFRUIT_NEOPIXEL
+#ifdef USE_NEOPIXELBUS
+    float h, s, v;
+    h = constrain(f(i, t_x_v, _h1, _h2, n) / 360, 0., 1.);
+    s = constrain(f(i, t_x_v, _s1, _s2, n), 0., 1.);
+    v = constrain(f(i, t_x_v, _v1, _v2, n), 0., 1.);
+    strip->SetPixelColor(i, HsbColor(h, s, v));
+#endif // USE_NEOPIXELBUS
   }
+#ifdef USE_ADAFRUIT_NEOPIXEL
   strip->show();
+#endif // USE_ADAFRUIT_NEOPIXEL
+#ifdef USE_NEOPIXELBUS
+  strip->Show();
+#endif // USE_NEOPIXELBUS
 }

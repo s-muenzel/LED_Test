@@ -5,7 +5,7 @@
 
 //#define IST_SONOFF
 //#define IST_ESP01
-/////#define IST_NODEMCU32 // gilt auch für Lolin D32
+//#define IST_NODEMCU32 // gilt auch für Lolin D32
 #define IST_ESP32S
 
 
