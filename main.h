@@ -5,7 +5,8 @@
 
 //#define IST_SONOFF
 //#define IST_ESP01
-#define IST_NODEMCU32 // gilt auch für Lolin D32
+/////#define IST_NODEMCU32 // gilt auch für Lolin D32
+#define IST_ESP32S
 
 
 #ifdef IST_SONOFF
@@ -16,7 +17,7 @@
 #  define LED_AN LOW
 #  define LED_AUS HIGH
 # else
-#  ifdef IST_NODEMCU32
+#  if defined(IST_NODEMCU32) || defined(IST_ESP32)
 #   define LED_AN LOW
 #   define LED_AUS HIGH
 #  else
@@ -25,6 +26,18 @@
 #  endif
 # endif
 #endif
+
+//
+//#ifdef IST_ESP32S
+//# define LED_PIN   13
+//# define BLOCK_INTERUPTS portDISABLE_INTERRUPTS()
+//# define UNBLOCK_INTERUPTS portENABLE_INTERRUPTS()
+//# define USE_ESP32ENCODER
+//// Pins für Rotary Encoder
+//# define ROTARY_A_PIN  4 // braun
+//# define ROTARY_B_PIN  2 // 35 // blau
+//# define KNOPF_PIN     15 // schwarz
+//#endif
 
 
 #ifdef DEBUG_SERIAL

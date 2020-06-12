@@ -14,8 +14,13 @@ class LichtModi {
 
     void Set_Modus(Modi mode, bool commit = false);
     void Set_Modus(const char*mode, bool commit = false);
+    void Next_Modus();
+    void Prev_Modus();
     Modi Get_Modus();
     const char* Get_Modus_Name();
+    void Next_PlusMinus();
+    void Plus();
+    void Minus();
     void Set_Helligkeit(uint8_t h, bool commit = false);
     uint8_t Get_Helligkeit();
     void Set_Farbe1(uint32_t f, bool commit = false);
@@ -45,6 +50,8 @@ class LichtModi {
 
     void Tick_Verlauf();
     void Tick_Verlauf2();
+
+    uint8_t PlusMinus_Mode;
 };
 
 #endif // _LichtModi

@@ -3,6 +3,7 @@
 
 #include "main.h"
 #include "Controler.h"
+#include "Color_Helper.h"
 
 #define POS_MODUS         0
 #define POS_HELLIGKEIT    sizeof(_Modus)
@@ -25,6 +26,10 @@
 #ifdef IST_NODEMCU32
 #define LED_PIN     27 // 14
 #endif // IST_NODEMCU32
+#ifdef IST_ESP32S
+#define LED_PIN     13
+#endif // IST_ESP32S
+
 
 // "Neue" WS2812B: 800kHz (passt auf die 18.Feier Eva LEDs)
 //#define LED_STRIP_TYP (NEO_GRB + NEO_KHZ800)
@@ -38,6 +43,7 @@
 Adafruit_NeoPixel *strip;
 
 LichtModi::LichtModi() {
+  PlusMinus_Mode = 0;
 }
 
 void LichtModi::Beginn() {
@@ -45,10 +51,8 @@ void LichtModi::Beginn() {
   EEPROM.begin(GROESSE_ALLES);
   EEPROM.get(POS_MODUS, _Modus);
   EEPROM.get(POS_HELLIGKEIT, _Helligkeit);
-  EEPROM.get(POS_FARBE1, _Farbe1);
-  Set_Farbe1(_Farbe1);
-  EEPROM.get(POS_FARBE2, _Farbe2);
-  Set_Farbe2(_Farbe2);
+  EEPROM.get(POS_FARBE1, _Farbe1); Set_Farbe1(_Farbe1);
+  EEPROM.get(POS_FARBE2, _Farbe2); Set_Farbe2(_Farbe2);
   EEPROM.get(POS_SPEED, _Speed);
   EEPROM.get(POS_N_LEDS, _n_Leds);
   EEPROM.get(POS_BRIGHTNESS, _Brightness);
@@ -56,10 +60,8 @@ void LichtModi::Beginn() {
     D_PRINTLN("EEPROM nicht richtig initialisiert, initiere neu");
     _Modus = Aus;
     _Helligkeit = 64;
-    _Farbe1 = 0x0f0f0f;
-    Set_Farbe1(_Farbe1);
-    _Farbe2 = 0x0f0f0f;
-    Set_Farbe2(_Farbe2);
+    _Farbe1 = 0x0f0f0f;  Set_Farbe1(_Farbe1);
+    _Farbe2 = 0x0f0f0f;  Set_Farbe2(_Farbe2);
     _Speed = 10;
     _n_Leds = 1;
     _Brightness = 32;
@@ -119,6 +121,7 @@ void LichtModi::Set_Modus(Modi mode, bool commit) {
   EEPROM.put(POS_MODUS, _Modus);
   if (commit)
     EEPROM.commit();
+  PlusMinus_Mode = 0;
 }
 
 void LichtModi::Set_Modus(const char* mode, bool commit) {
@@ -137,6 +140,195 @@ void LichtModi::Set_Modus(const char* mode, bool commit) {
   EEPROM.put(POS_MODUS, _Modus);
   if (commit)
     EEPROM.commit();
+  PlusMinus_Mode = 0;
+}
+
+void LichtModi::Next_Modus() {
+  switch (_Modus) {
+    default:
+    case Aus:
+      _Modus = Weiss;
+      break;
+    case Weiss:
+      _Modus = Farbe;
+      break;
+    case Farbe:
+      _Modus = Verlauf;
+      break;
+    case Verlauf:
+      _Modus = Verlauf2;
+      break;
+    case Verlauf2:
+      _Modus = Aus;
+      break;
+  }
+  EEPROM.put(POS_MODUS, _Modus);
+  EEPROM.commit();
+  PlusMinus_Mode = 0;
+}
+
+void LichtModi::Prev_Modus() {
+  switch (_Modus) {
+    default:
+    case Aus:
+      _Modus = Verlauf2;
+      break;
+    case Weiss:
+      _Modus = Aus;
+      break;
+    case Farbe:
+      _Modus = Weiss;
+      break;
+    case Verlauf:
+      _Modus = Farbe;
+      break;
+    case Verlauf2:
+      _Modus = Verlauf;
+      break;
+  }
+  EEPROM.put(POS_MODUS, _Modus);
+  EEPROM.commit();
+  PlusMinus_Mode = 0;
+}
+
+void LichtModi::Next_PlusMinus() {
+  switch (_Modus) {
+    default:
+    case Aus:
+      break;
+    case Weiss:
+      break;
+    case Farbe:
+      PlusMinus_Mode = (PlusMinus_Mode + 1) % 3;
+      D_PRINTF("Neuer PM_Modus: Farbe %s", PlusMinus_Mode);
+      break;
+    case Verlauf:
+      PlusMinus_Mode = (PlusMinus_Mode + 1) % 5;
+      break;
+    case Verlauf2:
+      break;
+  }
+}
+
+void LichtModi::Plus() {
+  switch (_Modus) {
+    default:
+    case Aus:
+      break;
+    case Weiss:
+      if (_Helligkeit < 255) {
+        _Helligkeit++;
+        EEPROM.put(POS_HELLIGKEIT, _Helligkeit);
+        EEPROM.commit();
+      }
+      break;
+    case Farbe:
+      D_PRINTF("+F1: x%08x, ", _Farbe1);
+      uint8_t r, g, b;
+      float fr, fg, fb;
+      switch (PlusMinus_Mode) {
+        case 0:
+          D_PRINTF("v1 von %f ->", _v1);
+          _v1 = _v1 + 0.05;
+          if (_v1 > 1) _v1 = 1;
+          D_PRINTF("%f ", _v1);
+          break;
+        case 1:
+          D_PRINTF("s1 von %f ->", _s1);
+          _s1 = _s1 + 0.05;
+          if (_s1 > 1) _s1 = 1;
+          D_PRINTF("%f ", _s1);
+        case 2:
+          D_PRINTF("h1 von %f ->", _s1);
+          _h1 = _h1 + 1;
+          if (_h1 > 360) _h1 -= 360;
+          D_PRINTF("%f ", _h1);
+          break;
+      }
+      HSVtoRGB(fr, fg, fb, _h1, _s1, _v1);
+      r = fr * 256;
+      g = fg * 256;
+      b = fb * 256;
+      _Farbe1 = (r << 16) + (g << 8) + b;
+      D_PRINTF(" neu: x%08x\n", _Farbe1);
+      EEPROM.put(POS_FARBE1, _Farbe1);
+      EEPROM.commit();
+      break;
+    case Verlauf:
+      switch (PlusMinus_Mode) {
+        case 0:
+          _Speed += 10;
+          if (_Speed > 1000) _Speed = 1000;
+          break;
+        case 1:
+        case 2:
+          break;
+      }
+      break;
+    case Verlauf2:
+      break;
+  }
+}
+
+void LichtModi::Minus() {
+  switch (_Modus) {
+    default:
+    case Aus:
+      break;
+    case Weiss:
+      if (_Helligkeit > 0) {
+        _Helligkeit--;
+        EEPROM.put(POS_HELLIGKEIT, _Helligkeit);
+        EEPROM.commit();
+      }
+      break;
+    case Farbe:
+      D_PRINTF("-F1: x%08x, ", _Farbe1);
+      uint8_t r, g, b;
+      float fr, fg, fb;
+      switch (PlusMinus_Mode) {
+        case 0:
+          D_PRINTF("v1 von %f ->", _v1);
+          _v1 = _v1 - 0.05;
+          if (_v1 < 0 ) _v1 = 0;
+          D_PRINTF("%f ", _v1);
+          break;
+        case 1:
+          D_PRINTF("s1 von %f ->", _s1);
+          _s1 = _s1 - 0.05;
+          if (_s1 < 0 ) _s1 = 0;
+          D_PRINTF("%f ", _s1);
+          break;
+        case 2:
+          D_PRINTF("h1 von %f ->", _h1);
+          _h1 = _h1 - 1;
+          if (_h1 < 0 ) _h1 += 360;
+          D_PRINTF("%f ", _h1);
+          break;
+      }
+      HSVtoRGB(fr, fg, fb, _h1, _s1, _v1);
+      r = fr * 256;
+      g = fg * 256;
+      b = fb * 256;
+      _Farbe1 = (r << 16) + (g << 8) + b;
+      D_PRINTF(" neu: x%08x\n", _Farbe1);
+      EEPROM.put(POS_FARBE1, _Farbe1);
+      EEPROM.commit();
+      break;
+    case Verlauf:
+      switch (PlusMinus_Mode) {
+        case 0:
+          _Speed -= 10;
+          if (_Speed < 1000) _Speed = 0;
+          break;
+        case 1:
+        case 2:
+          break;
+      }
+      break;
+    case Verlauf2:
+      break;
+  }
 }
 
 void LichtModi::Set_Helligkeit(uint8_t h, bool commit) {
@@ -269,129 +461,13 @@ void LichtModi::Tick_Verlauf() {
 void LichtModi::Tick_Verlauf2() {
   uint16_t  h;
   uint8_t s, v;
-  uint16_t n = _n_Leds; // strip.numPixels();
+  uint16_t n = _n_Leds;
   float t_x_v = millis() * _Speed / 1000 * n / 256; // Zeit * Geschwindigkeit --> Weg(t)
   for (int i = 0; i < n; i++) {
-    h = 65535*f(i, t_x_v, _h1, _h2, n);
-    s = 255*f(i, t_x_v, _s1, _s2, n);
-    v = 255*f(i, t_x_v, _v1, _v2, n);
-    strip->setPixelColor(i, strip->ColorHSV(h,s,v));
+    h = 65535 * f(i, t_x_v, _h1, _h2, n);
+    s = 255 * f(i, t_x_v, _s1, _s2, n);
+    v = 255 * f(i, t_x_v, _v1, _v2, n);
+    strip->setPixelColor(i, strip->ColorHSV(h, s, v));
   }
   strip->show();
-}
-
-/*! \brief Convert RGB to HSV color space
-
-  Converts a given set of RGB values `r', `g', `b' into HSV
-  coordinates. The input RGB values are in the range [0, 1], and the
-  output HSV values are in the ranges h = [0, 360], and s, v = [0,
-  1], respectively.
-
-  \param fR Red component, used as input, range: [0, 1]
-  \param fG Green component, used as input, range: [0, 1]
-  \param fB Blue component, used as input, range: [0, 1]
-  \param fH Hue component, used as output, range: [0, 360]
-  \param fS Hue component, used as output, range: [0, 1]
-  \param fV Hue component, used as output, range: [0, 1]
-
-*/
-void RGBtoHSV(float& fR, float& fG, float fB, float& fH, float& fS, float& fV) {
-  float fCMax = max(max(fR, fG), fB);
-  float fCMin = min(min(fR, fG), fB);
-  float fDelta = fCMax - fCMin;
-
-  if (fDelta > 0) {
-    if (fCMax == fR) {
-      fH = 60 * (fmod(((fG - fB) / fDelta), 6));
-    } else if (fCMax == fG) {
-      fH = 60 * (((fB - fR) / fDelta) + 2);
-    } else if (fCMax == fB) {
-      fH = 60 * (((fR - fG) / fDelta) + 4);
-    }
-
-    if (fCMax > 0) {
-      fS = fDelta / fCMax;
-    } else {
-      fS = 0;
-    }
-
-    fV = fCMax;
-  } else {
-    fH = 0;
-    fS = 0;
-    fV = fCMax;
-  }
-
-  if (fH < 0) {
-    fH = 360 + fH;
-  }
-}
-
-
-/*! \brief Convert HSV to RGB color space
-
-  Converts a given set of HSV values `h', `s', `v' into RGB
-  coordinates. The output RGB values are in the range [0, 1], and
-  the input HSV values are in the ranges h = [0, 360], and s, v =
-  [0, 1], respectively.
-
-  \param fR Red component, used as output, range: [0, 1]
-  \param fG Green component, used as output, range: [0, 1]
-  \param fB Blue component, used as output, range: [0, 1]
-  \param fH Hue component, used as input, range: [0, 360]
-  \param fS Hue component, used as input, range: [0, 1]
-  \param fV Hue component, used as input, range: [0, 1]
-
-*/
-void HSVtoRGB(float& fR, float& fG, float& fB, float& fH, float& fS, float& fV) {
-  float fC = fV * fS; // Chroma
-  float fHPrime = fmod(fH / 60.0, 6);
-  float fX = fC * (1 - fabs(fmod(fHPrime, 2) - 1));
-  float fM = fV - fC;
-
-  if (0 <= fHPrime && fHPrime < 1) {
-    fR = fC;
-    fG = fX;
-    fB = 0;
-  } else if (1 <= fHPrime && fHPrime < 2) {
-    fR = fX;
-    fG = fC;
-    fB = 0;
-  } else if (2 <= fHPrime && fHPrime < 3) {
-    fR = 0;
-    fG = fC;
-    fB = fX;
-  } else if (3 <= fHPrime && fHPrime < 4) {
-    fR = 0;
-    fG = fX;
-    fB = fC;
-  } else if (4 <= fHPrime && fHPrime < 5) {
-    fR = fX;
-    fG = 0;
-    fB = fC;
-  } else if (5 <= fHPrime && fHPrime < 6) {
-    fR = fC;
-    fG = 0;
-    fB = fX;
-  } else {
-    fR = 0;
-    fG = 0;
-    fB = 0;
-  }
-
-  fR += fM;
-  fG += fM;
-  fB += fM;
-}
-
-float g(int x, float t_x_v, uint16_t n) {
-  return ((int)(t_x_v - x)) % (n);
-}
-
-float f(int x, float t_x_v, float a, float b, uint16_t n) {
-  if (g(x, t_x_v, n) < n / 2) {
-    return a + (b - a) * g(x, t_x_v, n) / (n / 2);
-  } else {
-    return b + (a - b) * g(x - (n / 2), t_x_v, n) / (n / 2);
-  }
 }

@@ -1,7 +1,7 @@
 #ifndef _KNOPF
 #define _KNOPF
 
-#define LANG	  1500	// [ms] ab welcher Dauer zaehlt der Tastendruck als "lang"	
+#define LANG	  5000	// [ms] ab welcher Dauer zaehlt der Tastendruck als "lang"	
 
 class Knopf {
   public:
@@ -17,7 +17,8 @@ class Knopf {
       nix,    // keine Aenderung
       kurz,   // Knopf gedrueckt (1x)
       lang,   // Knopf lang gedrueckt
-      wert    // Entweder Drehzaehler oder "lang"-Zaehler
+      wert,   // Drehzaehler
+      wert_kurz // Drehzaehler & gedrueckt
     } _Event_t;
 
     _Event_t Status();
