@@ -41,7 +41,6 @@ void setup() {
   ///  D_PRINT(" OTA vorbereitet");
 
   // Knopf Initialisieren
-  __Knopf.SetzeBereich(-32767,32767);
   __Knopf.Beginn();
   __Knopf.Zaehler(0);
   D_PRINTF(" Knopf vorbereitet");
@@ -69,7 +68,7 @@ void loop() {
       }
     case Knopf::wert_kurz: {  // Knopf gedreht
         int32_t z = __Knopf.Zaehler();
-        D_PRINTF("Encoder=<% 3d> \n", z);
+//        D_PRINTF("Encoder=<% 3d> \n", z);
         if (z > last_decoder_val)
           __Modus.Next_Modus();
         else

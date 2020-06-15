@@ -9,10 +9,6 @@ class Knopf {
 
     void Beginn();
 
-    void SetzeBereich(int16_t minimum, int16_t maximum);
-    int16_t Minimum() { return _Minimum; };
-    int16_t Maximum() { return _Maximum; };
-
     typedef enum _Event {
       nix,    // keine Aenderung
       kurz,   // Knopf gedrueckt (1x)
@@ -35,8 +31,6 @@ class Knopf {
     bool    _Kurz;			// wurde ein kurz bereits gemeldet?
     uint8_t _Lang;			// bei _Lang wird mitgezaehlt
 
-    int16_t _Minimum;   // Wertebereich
-    int16_t _Maximum;   // Wertebereich
     int16_t _Zaehler;   // Zaehler
 
     bool    _An;        // Zaehler aktiv / passiv

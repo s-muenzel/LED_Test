@@ -1,10 +1,9 @@
 #include <EEPROM.h>
-
-#define USE_NEOPIXELBUS
-
 #include "main.h"
 #include "Controler.h"
 #include "Color_Helper.h"
+
+#define STATUS_DAUER  5000 // 5 sekunden Status anzeigen
 
 #define POS_MODUS         0
 #define POS_HELLIGKEIT    sizeof(_Modus)
@@ -15,40 +14,12 @@
 #define POS_BRIGHTNESS    POS_N_LEDS + sizeof(_n_Leds)
 #define GROESSE_ALLES     POS_BRIGHTNESS + sizeof(_Brightness)
 
-// Pin fuer die NeoPixels
-
-#ifdef IST_ESP01
-//#define LED_PIN     2 // RX
-#define LED_PIN     1 // TX
-#endif // IST_ESP01
-#ifdef IST_SONOFF // Achtung: nicht allgemein für SONOFF gültig
-#define LED_PIN     3
-#endif // IST_SONOFF
-#ifdef IST_NODEMCU32
-#define LED_PIN     27 // 14
-#endif // IST_NODEMCU32
-#ifdef IST_ESP32S
-#define LED_PIN     13
-#endif // IST_ESP32S
-
-#ifdef USE_ADAFRUIT_NEOPIXEL
-#include <Adafruit_NeoPixel.h>
-// "Neue" WS2812B: 800kHz (passt auf die 18.Feier Eva LEDs)
-//#define LED_STRIP_TYP (NEO_GRB + NEO_KHZ800)
-// WS2812: 400 kHz
-//#define LED_STRIP_TYP (NEO_GRB + NEO_KHZ400)
-// "Neue" SK6812(~WS2812B) RGBW (WarmWhite):
-// Led Strip SK6812(Similar WS2812B) RGBW 3m 60Leds/m IP30 DC5V
-#define LED_STRIP_TYP (NEO_GRBW + NEO_KHZ800)
-Adafruit_NeoPixel *strip;
-#endif // USE_ADAFRUIT_NEOPIXEL
-#ifdef USE_NEOPIXELBUS
-#include <NeoPixelBus.h>
-NeoPixelBus<NeoGrbwFeature, Neo800KbpsMethod> *strip;
-#endif // USE_NEOPIXELBUS
+#include "LED_Streifen.h"
+LED_Streifen _Streifen;
 
 LichtModi::LichtModi() {
   PlusMinus_Mode = 0;
+  Status_Timer = 0;
 }
 
 void LichtModi::Beginn() {
@@ -79,73 +50,40 @@ void LichtModi::Beginn() {
     EEPROM.put(POS_BRIGHTNESS, _Brightness);
     EEPROM.commit();
   }
-#ifdef USE_ADAFRUIT_NEOPIXEL
-  strip = new Adafruit_NeoPixel(1024, LED_PIN, LED_STRIP_TYP);
-  strip->begin();
-  strip->show();
-  delay(1);
-  delete strip;
-#endif // USE_ADAFRUIT_NEOPIXEL
-  D_PRINT("strip (0)");
-
-#ifdef USE_ADAFRUIT_NEOPIXEL
-  strip = new Adafruit_NeoPixel(_n_Leds, LED_PIN, LED_STRIP_TYP);
-  strip->begin();
-  strip->show();
-  strip->setBrightness(_Brightness);
-#endif // USE_ADAFRUIT_NEOPIXEL
-#ifdef USE_NEOPIXELBUS
-  strip = new NeoPixelBus<NeoGrbwFeature, Neo800KbpsMethod>(_n_Leds, LED_PIN);
-  strip->Begin();
-  strip->Show();
-#endif // USE_NEOPIXELBUS
+  _Streifen.Beginn(_n_Leds, _Brightness);
   D_PRINTLN("ENDE LichtModi");
 }
 
 void LichtModi::Bereit() {
+  _Streifen.Bereit();
 }
 
 void LichtModi::Tick() {
+  uint8_t n_status_pixel;
   switch (_Modus) {
     default:
     case Aus:
-
-#ifdef USE_ADAFRUIT_NEOPIXEL
-      strip->fill();
-      strip->show();
-#endif // USE_ADAFRUIT_NEOPIXEL
-#ifdef USE_NEOPIXELBUS
-      strip->ClearTo(RgbwColor(0));
-      strip->Show();
-#endif // USE_NEOPIXELBUS
+      n_status_pixel = Status_Aus();
+      Tick_Aus(n_status_pixel);
       break;
     case Weiss:
-#ifdef USE_ADAFRUIT_NEOPIXEL
-      strip->fill(strip->Color(0, 0, 0, strip->gamma8(_Helligkeit)));
-      strip->show();
-#endif // USE_ADAFRUIT_NEOPIXEL
-#ifdef USE_NEOPIXELBUS
-      strip->ClearTo(RgbwColor(_Helligkeit));
-      strip->Show();
-#endif // USE_NEOPIXELBUS
+      n_status_pixel = Status_Weiss();
+      Tick_Weiss(n_status_pixel);
       break;
     case Farbe:
-#ifdef USE_ADAFRUIT_NEOPIXEL
-      strip->fill(_Farbe1);
-      strip->show();
-#endif // USE_ADAFRUIT_NEOPIXEL
-#ifdef USE_NEOPIXELBUS
-      strip->ClearTo(HtmlColor(_Farbe1));
-      strip->Show();
-#endif // USE_NEOPIXELBUS
+      n_status_pixel = Status_Farbe();
+      Tick_Farbe(n_status_pixel);
       break;
     case Verlauf:
-      Tick_Verlauf();
+      n_status_pixel = Status_Verlauf();
+      Tick_Verlauf(n_status_pixel);
       break;
     case Verlauf2:
-      Tick_Verlauf2();
+      n_status_pixel = Status_Verlauf2();
+      Tick_Verlauf2(n_status_pixel);
       break;
   }
+  _Streifen.Show();
 }
 
 void LichtModi::Set_Modus(Modi mode, bool commit) {
@@ -155,6 +93,7 @@ void LichtModi::Set_Modus(Modi mode, bool commit) {
   if (commit)
     EEPROM.commit();
   PlusMinus_Mode = 0;
+  Status_Timer = millis() + STATUS_DAUER;
 }
 
 void LichtModi::Set_Modus(const char* mode, bool commit) {
@@ -175,6 +114,7 @@ void LichtModi::Set_Modus(const char* mode, bool commit) {
   if (commit)
     EEPROM.commit();
   PlusMinus_Mode = 0;
+  Status_Timer = millis() + STATUS_DAUER;
 }
 
 void LichtModi::Next_Modus() {
@@ -196,9 +136,8 @@ void LichtModi::Next_Modus() {
       Set_Modus(Aus);
       break;
   }
-  //  EEPROM.put(POS_MODUS, _Modus);
-  //  EEPROM.commit();
   PlusMinus_Mode = 0;
+  Status_Timer = millis() + STATUS_DAUER;
 }
 
 void LichtModi::Prev_Modus() {
@@ -220,9 +159,8 @@ void LichtModi::Prev_Modus() {
       Set_Modus(Verlauf);
       break;
   }
-  //  EEPROM.put(POS_MODUS, _Modus);
-  //  EEPROM.commit();
   PlusMinus_Mode = 0;
+  Status_Timer = millis() + STATUS_DAUER;
 }
 
 void LichtModi::Next_PlusMinus() {
@@ -233,16 +171,17 @@ void LichtModi::Next_PlusMinus() {
     case Weiss:
       break;
     case Farbe:
-      PlusMinus_Mode = (PlusMinus_Mode + 1) % 3;
+      PlusMinus_Mode = (PlusMinus_Mode + 1) % 4;
       D_PRINTF("Neuer PM_Modus: Farbe %d\n", PlusMinus_Mode);
       break;
     case Verlauf:
-      PlusMinus_Mode = (PlusMinus_Mode + 1) % 5;
+      PlusMinus_Mode = (PlusMinus_Mode + 1) % 7;
       D_PRINTF("Neuer PM_Modus: Verlauf %d\n", PlusMinus_Mode);
       break;
     case Verlauf2:
       break;
   }
+  Status_Timer = millis() + STATUS_DAUER;
 }
 
 void LichtModi::Plus() {
@@ -258,10 +197,11 @@ void LichtModi::Plus() {
       break;
     case Farbe:
       D_PRINTF("+F1: x%08x, ", _Farbe1);
-      uint8_t r, g, b;
+      uint8_t r, g, b, w;
       r = (_Farbe1 & 0xff0000) >> 16;
       g = (_Farbe1 & 0xff00) >> 8;
       b = (_Farbe1 & 0xff);
+      w = (_Farbe1 & 0xff000000) >> 24;
       switch (PlusMinus_Mode) {
         case 0:
           D_PRINTF("r von %02x ->", r);
@@ -281,8 +221,14 @@ void LichtModi::Plus() {
           else b = 255;
           D_PRINTF("%02x ", b);
           break;
+        case 3:
+          D_PRINTF("w von %02x ->", w);
+          if (w <= 250) w += 5;
+          else w = 255;
+          D_PRINTF("%02x ", w);
+          break;
       }
-      _Farbe1 = (r << 16) + (g << 8) + b;
+      _Farbe1 = (r << 16) + (g << 8) + b + (w << 24);
       float fr, fg, fb;
       fr =  ((_Farbe1 >> 16) & 0xff) / 255.;
       fg =  ((_Farbe1 >> 8) & 0xff) / 255.;
@@ -293,20 +239,80 @@ void LichtModi::Plus() {
       EEPROM.commit();
       break;
     case Verlauf:
+      D_PRINTF("+F1: x%08x, F2: x%08x ", _Farbe1, _Farbe2);
+      uint8_t r1, g1, b1, w1;
+      r1 = (_Farbe1 & 0xff0000) >> 16;
+      g1 = (_Farbe1 & 0xff00) >> 8;
+      b1 = (_Farbe1 & 0xff);
+      w1 = (_Farbe1 & 0xff000000) >> 24;
+      uint8_t r2, g2, b2, w2;
+      r2 = (_Farbe2 & 0xff0000) >> 16;
+      g2 = (_Farbe2 & 0xff00) >> 8;
+      b2 = (_Farbe2 & 0xff);
+      w2 = (_Farbe2 & 0xff000000) >> 24;
       switch (PlusMinus_Mode) {
         case 0:
-          _Speed += 10;
-          if (_Speed > 1000) _Speed = 1000;
+          if (_Speed > 990) _Speed = 1000;
+          else _Speed += 10;
           break;
         case 1:
+          D_PRINTF("r1 von %02x ->", r1);
+          if (r1 <= 250) r1 += 5;
+          else r1 = 255;
+          D_PRINTF("%02x ", r1);
+          break;
         case 2:
+          D_PRINTF("g1 von %02x ->", g1);
+          if (g1 <= 250) g1 += 5;
+          else g1 = 255;
+          D_PRINTF("%02x ", g1);
+          break;
+        case 3:
+          D_PRINTF("b1 von %02x ->", b1);
+          if (b1 <= 250) b1 += 5;
+          else b1 = 255;
+          D_PRINTF("%02x ", b1);
+          break;
+        case 4:
+          D_PRINTF("r2 von %02x ->", r2);
+          if (r2 <= 250) r2 += 5;
+          else r2 = 255;
+          D_PRINTF("%02x ", r2);
+          break;
+        case 5:
+          D_PRINTF("g2 von %02x ->", g2);
+          if (g2 <= 250) g2 += 5;
+          else g2 = 255;
+          D_PRINTF("%02x ", g2);
+          break;
+        case 6:
+          D_PRINTF("b2 von %02x ->", b2);
+          if (b2 <= 250) b2 += 5;
+          else b2 = 255;
+          D_PRINTF("%02x ", b2);
+          break;
         default:
           break;
       }
+      _Farbe1 = (r1 << 16) + (g1 << 8) + b1 + (w1 << 24);
+      fr =  ((_Farbe1 >> 16) & 0xff) / 255.;
+      fg =  ((_Farbe1 >> 8) & 0xff) / 255.;
+      fb =  ((_Farbe1) & 0xff) / 255.;
+      RGBtoHSV(fr, fg, fb, _h1, _s1, _v1);
+      _Farbe2 = (r2 << 16) + (g2 << 8) + b2 + (w2 << 24);
+      fr =  ((_Farbe2 >> 16) & 0xff) / 255.;
+      fg =  ((_Farbe2 >> 8) & 0xff) / 255.;
+      fb =  ((_Farbe2) & 0xff) / 255.;
+      RGBtoHSV(fr, fg, fb, _h2, _s2, _v2);
+      D_PRINTF(" neu: x%08x, x%08x\n", _Farbe1, _Farbe2);
+      EEPROM.put(POS_FARBE1, _Farbe1);
+      EEPROM.put(POS_FARBE2, _Farbe2);
+      EEPROM.commit();
       break;
     case Verlauf2:
       break;
   }
+  Status_Timer = millis() + STATUS_DAUER;
 }
 
 void LichtModi::Minus() {
@@ -326,10 +332,11 @@ void LichtModi::Minus() {
       break;
     case Farbe:
       D_PRINTF("-F1: x%08x, ", _Farbe1);
-      uint8_t r, g, b;
+      uint8_t r, g, b, w;
       r = (_Farbe1 & 0xff0000) >> 16;
       g = (_Farbe1 & 0xff00) >> 8;
       b = (_Farbe1 & 0xff);
+      w = (_Farbe1 & 0xff000000) << 24;
       switch (PlusMinus_Mode) {
         case 0:
           D_PRINTF("r von %02x ->", r);
@@ -349,8 +356,14 @@ void LichtModi::Minus() {
           else b = 0;
           D_PRINTF("%02x ", b);
           break;
+        case 3:
+          D_PRINTF("w von %02x ->", w);
+          if (w >= 5) w -= 5;
+          else w = 0;
+          D_PRINTF("%02x ", w);
+          break;
       }
-      _Farbe1 = (r << 16) + (g << 8) + b;
+      _Farbe1 = (r << 16) + (g << 8) + b + (w << 24);
       float fr, fg, fb;
       fr =  ((_Farbe1 >> 16) & 0xff) / 255.;
       fg =  ((_Farbe1 >> 8) & 0xff) / 255.;
@@ -361,19 +374,80 @@ void LichtModi::Minus() {
       EEPROM.commit();
       break;
     case Verlauf:
+      D_PRINTF("+F1: x%08x, F2: x%08x ", _Farbe1, _Farbe2);
+      uint8_t r1, g1, b1, w1;
+      r1 = (_Farbe1 & 0xff0000) >> 16;
+      g1 = (_Farbe1 & 0xff00) >> 8;
+      b1 = (_Farbe1 & 0xff);
+      w1 = (_Farbe1 & 0xff000000) >> 24;
+      uint8_t r2, g2, b2, w2;
+      r2 = (_Farbe2 & 0xff0000) >> 16;
+      g2 = (_Farbe2 & 0xff00) >> 8;
+      b2 = (_Farbe2 & 0xff);
+      w2 = (_Farbe2 & 0xff000000) >> 24;
       switch (PlusMinus_Mode) {
         case 0:
-          _Speed -= 10;
-          if (_Speed < 1000) _Speed = 0;
+          if (_Speed < 10) _Speed = 0;
+          else _Speed -= 10;
           break;
         case 1:
+          D_PRINTF("r1 von %02x ->", r1);
+          if (r1 >= 5) r1 -= 5;
+          else r1 = 0;
+          D_PRINTF("%02x ", r1);
+          break;
         case 2:
+          D_PRINTF("g1 von %02x ->", g1);
+          if (g1 >= 5) g1 -= 5;
+          else g1 = 0;
+          D_PRINTF("%02x ", g1);
+          break;
+        case 3:
+          D_PRINTF("b1 von %02x ->", b1);
+          if (b1 >= 5) b1 -= 5;
+          else b1 = 0;
+          D_PRINTF("%02x ", b1);
+          break;
+        case 4:
+          D_PRINTF("r2 von %02x ->", r2);
+          if (r2 >= 5) r2 -= 5;
+          else r2 = 0;
+          D_PRINTF("%02x ", r2);
+          break;
+        case 5:
+          D_PRINTF("g2 von %02x ->", g2);
+          if (g2 >= 5) g2 -= 5;
+          else g2 = 0;
+          D_PRINTF("%02x ", g2);
+          break;
+        case 6:
+          D_PRINTF("b2 von %02x ->", b2);
+          if (b2 >= 5) b2 -= 5;
+          else b2 = 0;
+          D_PRINTF("%02x ", b2);
+          break;
+        default:
           break;
       }
+      _Farbe1 = (r1 << 16) + (g1 << 8) + b1 + (w1 << 24);
+      fr =  ((_Farbe1 >> 16) & 0xff) / 255.;
+      fg =  ((_Farbe1 >> 8) & 0xff) / 255.;
+      fb =  ((_Farbe1) & 0xff) / 255.;
+      RGBtoHSV(fr, fg, fb, _h1, _s1, _v1);
+      _Farbe2 = (r2 << 16) + (g2 << 8) + b2 + (w2 << 24);
+      fr =  ((_Farbe2 >> 16) & 0xff) / 255.;
+      fg =  ((_Farbe2 >> 8) & 0xff) / 255.;
+      fb =  ((_Farbe2) & 0xff) / 255.;
+      RGBtoHSV(fr, fg, fb, _h2, _s2, _v2);
+      D_PRINTF(" neu: x%08x, x%08x\n", _Farbe1, _Farbe2);
+      EEPROM.put(POS_FARBE1, _Farbe1);
+      EEPROM.put(POS_FARBE2, _Farbe2);
+      EEPROM.commit();
       break;
     case Verlauf2:
       break;
   }
+  Status_Timer = millis() + STATUS_DAUER;
 }
 
 void LichtModi::Set_Helligkeit(uint8_t h, bool commit) {
@@ -381,6 +455,7 @@ void LichtModi::Set_Helligkeit(uint8_t h, bool commit) {
   EEPROM.put(POS_HELLIGKEIT, _Helligkeit);
   if (commit)
     EEPROM.commit();
+  Status_Timer = millis() + STATUS_DAUER;
 }
 
 void LichtModi::Set_Farbe1(uint32_t f, bool commit) {
@@ -393,6 +468,7 @@ void LichtModi::Set_Farbe1(uint32_t f, bool commit) {
   EEPROM.put(POS_FARBE1, _Farbe1);
   if (commit)
     EEPROM.commit();
+  Status_Timer = millis() + STATUS_DAUER;
 }
 
 void LichtModi::Set_Farbe2(uint32_t f, bool commit) {
@@ -405,6 +481,7 @@ void LichtModi::Set_Farbe2(uint32_t f, bool commit) {
   EEPROM.put(POS_FARBE2, _Farbe2);
   if (commit)
     EEPROM.commit();
+  Status_Timer = millis() + STATUS_DAUER;
 }
 
 void LichtModi::Set_Speed(uint16_t s, bool commit) {
@@ -412,6 +489,7 @@ void LichtModi::Set_Speed(uint16_t s, bool commit) {
   EEPROM.put(POS_SPEED, _Speed);
   if (commit)
     EEPROM.commit();
+  Status_Timer = millis() + STATUS_DAUER;
 }
 
 void LichtModi::Set_n_Leds(uint16_t n, bool commit) {
@@ -481,7 +559,81 @@ uint8_t LichtModi::Get_Brightness() {
   return _Brightness;
 }
 
-void LichtModi::Tick_Verlauf() {
+void LichtModi::Indikator(uint16_t n, uint8_t r, uint8_t g, uint8_t b, uint8_t w, bool an, bool state) {
+  if (!state) {
+    _Streifen.SetPixelColor(n, r, g, b, w);
+  } else {
+    if (an) {
+      if ( (r != 0) || (g != 0) || (b != 0)) {
+        _Streifen.SetPixelColor(n, r, g, b, w);
+      } else {
+        _Streifen.SetPixelColor(n, 10, 10, 10, 0);
+      }
+    } else {
+      _Streifen.SetPixelColor(n, 0, 0, 0, 0);
+    }
+  }
+}
+
+uint8_t LichtModi::Status_Aus() {
+  return 0;
+}
+
+void LichtModi::Tick_Aus(uint8_t ab_hier) {
+  _Streifen.MonoFarbe(0, 0, 0, 0, ab_hier);
+}
+
+uint8_t LichtModi::Status_Weiss() {
+  if (millis() < Status_Timer) {
+    _Streifen.SetPixelColor(0, 0, 0, 0, 127);
+    return 1;
+  } else
+    return 0;
+}
+
+void LichtModi::Tick_Weiss(uint8_t ab_hier) {
+  _Streifen.MonoFarbe(0, 0, 0, _Helligkeit, ab_hier);
+}
+
+uint8_t LichtModi::Status_Farbe() {
+  if (millis() < Status_Timer) {
+    bool blink_aus = (millis() % 1000) > 500;
+    _Streifen.SetPixelColor(0, 127, 0, 0, 0);
+    Indikator(1, (_Farbe1 >> 16) & 0xff, 0, 0, 0, blink_aus, (PlusMinus_Mode == 0));
+    Indikator(2, 0, (_Farbe1 >>  8) & 0xff, 0, 0, blink_aus, (PlusMinus_Mode == 1));
+    Indikator(3, 0, 0, (_Farbe1 >>  0) & 0xff, 0, blink_aus, (PlusMinus_Mode == 2));
+    Indikator(4, 0, 0, 0, (_Farbe1 >> 24) & 0xff, blink_aus, (PlusMinus_Mode == 3));
+    return 5;
+  } else
+    return 0;
+}
+
+void LichtModi::Tick_Farbe(uint8_t ab_hier) {
+  _Streifen.MonoFarbe((_Farbe1 >> 16) & 0xff, (_Farbe1 >> 8) & 0xff, (_Farbe1 >> 0) & 0xff, (_Farbe1 >> 24) & 0xff, ab_hier);
+}
+
+uint8_t LichtModi::Status_Verlauf() {
+  if (millis() < Status_Timer) {
+    bool blink_aus;
+    if (_Speed > 2)
+      blink_aus = ( millis() % (10*_Speed)) > (_Speed * 5);
+    else
+      blink_aus = false;
+    Indikator(4, 32, 32, 32, 0, blink_aus, (PlusMinus_Mode == 0));
+    blink_aus = (millis() % 1000) > 500;
+    _Streifen.SetPixelColor(0, 127, 0, 127, 0);
+    Indikator(1, (_Farbe1 >> 16) & 0xff, 0, 0, 0, blink_aus, (PlusMinus_Mode == 1));
+    Indikator(2, 0, (_Farbe1 >>  8) & 0xff, 0, 0, blink_aus, (PlusMinus_Mode == 2));
+    Indikator(3, 0, 0, (_Farbe1 >>  0) & 0xff, 0, blink_aus, (PlusMinus_Mode == 3));
+    Indikator(5, (_Farbe2 >> 16) & 0xff, 0, 0, 0, blink_aus, (PlusMinus_Mode == 4));
+    Indikator(6, 0, (_Farbe2 >>  8) & 0xff, 0, 0, blink_aus, (PlusMinus_Mode == 5));
+    Indikator(7, 0, 0, (_Farbe2 >>  0) & 0xff, 0, blink_aus, (PlusMinus_Mode == 6));
+    return 8;
+  } else
+    return 0;
+}
+
+void LichtModi::Tick_Verlauf(uint8_t ab_hier) {
   float h, s, v;
   float fr, fg, fb;
   uint32_t F;
@@ -489,7 +641,7 @@ void LichtModi::Tick_Verlauf() {
   uint8_t r, g, b;
   uint16_t n = _n_Leds; // strip.numPixels();
   float t_x_v = millis() * _Speed / 1000 * n / 256; // Zeit * Geschwindigkeit --> Weg(t)
-  for (int i = 0; i < n; i++) {
+  for (int i = ab_hier; i < n; i++) {
     h = f(i, t_x_v, _h1, _h2, n);
     s = f(i, t_x_v, _s1, _s2, n);
     v = f(i, t_x_v, _v1, _v2, n);
@@ -498,25 +650,23 @@ void LichtModi::Tick_Verlauf() {
     g = fg * 256;
     b = fb * 256;
     F = (r << 16) + (g << 8) + b;
-#ifdef USE_ADAFRUIT_NEOPIXEL
-    strip->setPixelColor(i, F);
-#endif // USE_ADAFRUIT_NEOPIXEL
-#ifdef USE_NEOPIXELBUS
-    strip->SetPixelColor(i, RgbwColor(HtmlColor(F)));
-#endif // USE_NEOPIXELBUS
+    _Streifen.SetPixelColor(i, r, g, b, 0);
   }
-#ifdef USE_ADAFRUIT_NEOPIXEL
-  strip->show();
-#endif // USE_ADAFRUIT_NEOPIXEL
-#ifdef USE_NEOPIXELBUS
-  strip->Show();
-#endif // USE_NEOPIXELBUS
 }
 
-void LichtModi::Tick_Verlauf2() {
+uint8_t LichtModi::Status_Verlauf2() {
+  if (millis() < Status_Timer) {
+    _Streifen.SetPixelColor(0, 127, 127, 127, 0);
+    return 1;
+  } else
+    return 0;
+}
+
+void LichtModi::Tick_Verlauf2(uint8_t ab_hier) {
   uint16_t n = _n_Leds;
   float t_x_v = millis() * _Speed / 1000 * n / 256; // Zeit * Geschwindigkeit --> Weg(t)
-  for (int i = 0; i < n; i++) {
+  for (int i = ab_hier; i < n; i++) {
+#if 0
 #ifdef USE_ADAFRUIT_NEOPIXEL
     uint16_t  h;
     uint8_t s, v;
@@ -532,11 +682,12 @@ void LichtModi::Tick_Verlauf2() {
     v = constrain(f(i, t_x_v, _v1, _v2, n), 0., 1.);
     strip->SetPixelColor(i, HsbColor(h, s, v));
 #endif // USE_NEOPIXELBUS
+#endif // 0
+    uint8_t r, g, b;
+    r = constrain(int(f(i, t_x_v, _h1, _h2, n) / 360 * 255), 0, 255);
+    g = constrain(int(f(i, t_x_v, _s1, _s2, n) * 255), 0, 255);
+    b = constrain(int(f(i, t_x_v, _v1, _v2, n) * 255), 0, 255);
+    _Streifen.SetPixelColor(i, r, g, b, 0);
+
   }
-#ifdef USE_ADAFRUIT_NEOPIXEL
-  strip->show();
-#endif // USE_ADAFRUIT_NEOPIXEL
-#ifdef USE_NEOPIXELBUS
-  strip->Show();
-#endif // USE_NEOPIXELBUS
 }

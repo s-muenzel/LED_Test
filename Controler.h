@@ -37,6 +37,7 @@ class LichtModi {
 
   private:
 
+    // Persistent Data
     Modi _Modus;
     uint8_t _Helligkeit;
     uint32_t _Farbe1;
@@ -48,10 +49,28 @@ class LichtModi {
     uint16_t _n_Leds;
     uint8_t _Brightness;
 
-    void Tick_Verlauf();
-    void Tick_Verlauf2();
-
+    // Transient Data
     uint8_t PlusMinus_Mode;
+    uint32_t Status_Timer;
+
+    // Hier die verschiedenen Modi
+    void Indikator(uint16_t n, uint8_t r, uint8_t g, uint8_t b, uint8_t w, bool an, bool state);
+
+    uint8_t Status_Aus();
+    void Tick_Aus(uint8_t ab_hier);
+
+    uint8_t Status_Weiss();
+    void Tick_Weiss(uint8_t ab_hier);
+
+    uint8_t Status_Farbe();
+    void Tick_Farbe(uint8_t ab_hier);
+
+    uint8_t Status_Verlauf();
+    void Tick_Verlauf(uint8_t ab_hier);
+
+    uint8_t Status_Verlauf2();
+    void Tick_Verlauf2(uint8_t ab_hier);
+
 };
 
 #endif // _LichtModi

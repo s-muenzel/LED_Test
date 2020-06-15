@@ -24,9 +24,7 @@ ESP32Encoder encoder;
 #endif //  USE_ESP32ENCODER
 
 Knopf::Knopf() {
-  _Minimum = 0;   // Wertebereich
-  _Maximum = 100;   // Wertebereich
-  _Zaehler = _Minimum;   // Zaehler
+  _Zaehler = 0;   // Zaehler
   _An = false;
 }
 
@@ -47,22 +45,6 @@ void Knopf::Beginn() {
 #endif //  USE_ESP32ENCODER
 }
 
-void Knopf::SetzeBereich(int16_t minimum, int16_t maximum) {
-  _Minimum = minimum;   // Wertebereich
-  _Maximum = maximum;   // Wertebereich
-  if (_Zaehler < _Minimum) {
-    _Zaehler = _Minimum;
-#ifdef USE_ESP32ENCODER
-    encoder.setCount(_Zaehler);
-#endif //  USE_ESP32ENCODER
-  }
-  if (_Zaehler > _Maximum) {
-    _Zaehler = _Maximum;
-#ifdef USE_ESP32ENCODER
-    encoder.setCount(_Zaehler);
-#endif //  USE_ESP32ENCODER
-  }
-}
 
 
 Knopf::_Event_t Knopf::Status() {
@@ -93,20 +75,10 @@ Knopf::_Event_t Knopf::Status() {
     int32_t z;
 #ifdef USE_ESP32ENCODER
     z = encoder.getCount();
+    //    encoder.setCount(0);
 #else
     z = 0;
-#endif //  USE_ESP32ENCODER
-    if (z < _Minimum) {
-      z = _Minimum;
-#ifdef USE_ESP32ENCODER
-      encoder.setCount(z);
-#endif //  USE_ESP32ENCODER
-    } else if (z > _Maximum) {
-      z = _Maximum;
-#ifdef USE_ESP32ENCODER
-      encoder.setCount(z);
-#endif //  USE_ESP32ENCODER
-    }
+#endif // USE_ESP32ENCODER
     if (z != _Zaehler) {
       _Zaehler = z;
       if (_Kurz)
@@ -124,14 +96,7 @@ Knopf::_Event_t Knopf::Status() {
 }
 
 void Knopf::Zaehler(int16_t zaehler) {
-  int16_t z = zaehler;
-  if (z < _Minimum) {
-    z = _Minimum;
-  }
-  if (z > _Maximum) {
-    z = _Maximum;
-  }
-  _Zaehler = z;
+  _Zaehler = zaehler;
 #ifdef USE_ESP32ENCODER
   encoder.setCount(_Zaehler);
 #endif // USE_ESP32ENCODER
