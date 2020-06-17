@@ -5,14 +5,13 @@
 
 #define STATUS_DAUER  5000 // 5 sekunden Status anzeigen
 
-#define POS_MODUS         0
-#define POS_HELLIGKEIT    sizeof(_Modus)
-#define POS_FARBE1        POS_HELLIGKEIT + sizeof(_Helligkeit)
-#define POS_FARBE2        POS_FARBE1 + sizeof(_Farbe1)
-#define POS_SPEED         POS_FARBE2 + sizeof(_Farbe2)
-#define POS_N_LEDS        POS_SPEED + sizeof(_Speed)
-#define POS_BRIGHTNESS    POS_N_LEDS + sizeof(_n_Leds)
-#define GROESSE_ALLES     POS_BRIGHTNESS + sizeof(_Brightness)
+#define E_VERSION         3.0
+#define E_HELLIGKEIT    128
+#define E_FARBE1        0xf00000
+#define E_FARBE2        0x00f000
+#define E_SPEED         100
+#define E_N_LEDS        150
+#define E_BRIGHTNESS    64
 
 #include "LED_Streifen.h"
 LED_Streifen _Streifen;
@@ -24,32 +23,22 @@ LichtModi::LichtModi() {
 
 void LichtModi::Beginn() {
   D_PRINTLN("LichtModi Beginn");
-  EEPROM.begin(GROESSE_ALLES);
-  EEPROM.get(POS_MODUS, _Modus);
-  EEPROM.get(POS_HELLIGKEIT, _Helligkeit);
-  EEPROM.get(POS_FARBE1, _Farbe1); Set_Farbe1(_Farbe1);
-  EEPROM.get(POS_FARBE2, _Farbe2); Set_Farbe2(_Farbe2);
-  EEPROM.get(POS_SPEED, _Speed);
-  EEPROM.get(POS_N_LEDS, _n_Leds);
-  EEPROM.get(POS_BRIGHTNESS, _Brightness);
-  if ((_n_Leds < 1) || (_n_Leds > 1024)) {
-    D_PRINTLN("EEPROM nicht richtig initialisiert, initiere neu");
-    _Modus = Aus;
-    _Helligkeit = 64;
-    _Farbe1 = 0x0f0f0f;  Set_Farbe1(_Farbe1);
-    _Farbe2 = 0x0f0f0f;  Set_Farbe2(_Farbe2);
-    _Speed = 10;
-    _n_Leds = 1;
-    _Brightness = 32;
-    EEPROM.put(POS_MODUS, _Modus);
-    EEPROM.put(POS_HELLIGKEIT, _Helligkeit);
-    EEPROM.put(POS_FARBE1, _Farbe1);
-    EEPROM.put(POS_FARBE2, _Farbe2);
-    EEPROM.put(POS_SPEED, _Speed);
-    EEPROM.put(POS_N_LEDS, _n_Leds);
-    EEPROM.put(POS_BRIGHTNESS, _Brightness);
-    EEPROM.commit();
-  }
+  _Version.Init(&_E_Master, E_VERSION);
+  _Helligkeit.Init(&_E_Master, E_HELLIGKEIT);
+  _Farbe1.Init(&_E_Master, E_FARBE1);
+  _Farbe2.Init(&_E_Master, E_FARBE2);
+  _Speed.Init(&_E_Master, E_SPEED);
+  _n_Leds.Init(&_E_Master, E_N_LEDS);
+  _Brightness.Init(&_E_Master, E_BRIGHTNESS);
+
+  _E_Master.Beginn();
+  if (_Version != E_VERSION)
+    _E_Master.ResetAll();
+
+  _Modus = Weiss;
+  Set_Farbe1(_Farbe1);
+  Set_Farbe2(_Farbe2);
+
   _Streifen.Beginn(_n_Leds, _Brightness);
   D_PRINTLN("ENDE LichtModi");
 }
@@ -59,6 +48,7 @@ void LichtModi::Bereit() {
 }
 
 void LichtModi::Tick() {
+  _E_Master.Tick();
   uint8_t n_status_pixel;
   switch (_Modus) {
     default:
@@ -89,9 +79,6 @@ void LichtModi::Tick() {
 void LichtModi::Set_Modus(Modi mode, bool commit) {
   _Modus = mode;
   D_PRINTF("Neuer Modus: %s\n", Get_Modus_Name());
-  EEPROM.put(POS_MODUS, _Modus);
-  if (commit)
-    EEPROM.commit();
   PlusMinus_Mode = 0;
   Status_Timer = millis() + STATUS_DAUER;
 }
@@ -110,9 +97,6 @@ void LichtModi::Set_Modus(const char* mode, bool commit) {
   } else
     _Modus = Aus;
   D_PRINTF("Neuer Modus: %s\n", Get_Modus_Name());
-  EEPROM.put(POS_MODUS, _Modus);
-  if (commit)
-    EEPROM.commit();
   PlusMinus_Mode = 0;
   Status_Timer = millis() + STATUS_DAUER;
 }
@@ -190,10 +174,8 @@ void LichtModi::Plus() {
     case Aus:
       break;
     case Weiss:
-      if (_Helligkeit <= 250) _Helligkeit += 5;
+      if (_Helligkeit <= 250) _Helligkeit = _Helligkeit + 5;
       else _Helligkeit = 255;
-      EEPROM.put(POS_HELLIGKEIT, _Helligkeit);
-      EEPROM.commit();
       break;
     case Farbe:
       D_PRINTF("+F1: x%08x, ", _Farbe1);
@@ -235,8 +217,6 @@ void LichtModi::Plus() {
       fb =  ((_Farbe1) & 0xff) / 255.;
       RGBtoHSV(fr, fg, fb, _h1, _s1, _v1);
       D_PRINTF(" neu: x%08x\n", _Farbe1);
-      EEPROM.put(POS_FARBE1, _Farbe1);
-      EEPROM.commit();
       break;
     case Verlauf:
       D_PRINTF("+F1: x%08x, F2: x%08x ", _Farbe1, _Farbe2);
@@ -253,7 +233,7 @@ void LichtModi::Plus() {
       switch (PlusMinus_Mode) {
         case 0:
           if (_Speed > 990) _Speed = 1000;
-          else _Speed += 10;
+          else _Speed = _Speed + 10;
           break;
         case 1:
           D_PRINTF("r1 von %02x ->", r1);
@@ -305,9 +285,6 @@ void LichtModi::Plus() {
       fb =  ((_Farbe2) & 0xff) / 255.;
       RGBtoHSV(fr, fg, fb, _h2, _s2, _v2);
       D_PRINTF(" neu: x%08x, x%08x\n", _Farbe1, _Farbe2);
-      EEPROM.put(POS_FARBE1, _Farbe1);
-      EEPROM.put(POS_FARBE2, _Farbe2);
-      EEPROM.commit();
       break;
     case Verlauf2:
       break;
@@ -323,11 +300,9 @@ void LichtModi::Minus() {
     case Weiss:
       if (_Helligkeit > 0) {
         D_PRINTF("-H: x%02x -> ", _Helligkeit );
-        if (_Helligkeit >= 5) _Helligkeit -= 5;
+        if (_Helligkeit >= 5) _Helligkeit = _Helligkeit - 5;
         else _Helligkeit = 0;
         D_PRINTF("%02x\n", _Helligkeit);
-        EEPROM.put(POS_HELLIGKEIT, _Helligkeit);
-        EEPROM.commit();
       }
       break;
     case Farbe:
@@ -370,8 +345,6 @@ void LichtModi::Minus() {
       fb =  ((_Farbe1) & 0xff) / 255.;
       RGBtoHSV(fr, fg, fb, _h1, _s1, _v1);
       D_PRINTF(" neu: x%08x\n", _Farbe1);
-      EEPROM.put(POS_FARBE1, _Farbe1);
-      EEPROM.commit();
       break;
     case Verlauf:
       D_PRINTF("+F1: x%08x, F2: x%08x ", _Farbe1, _Farbe2);
@@ -388,7 +361,7 @@ void LichtModi::Minus() {
       switch (PlusMinus_Mode) {
         case 0:
           if (_Speed < 10) _Speed = 0;
-          else _Speed -= 10;
+          else _Speed = _Speed - 10;
           break;
         case 1:
           D_PRINTF("r1 von %02x ->", r1);
@@ -440,9 +413,6 @@ void LichtModi::Minus() {
       fb =  ((_Farbe2) & 0xff) / 255.;
       RGBtoHSV(fr, fg, fb, _h2, _s2, _v2);
       D_PRINTF(" neu: x%08x, x%08x\n", _Farbe1, _Farbe2);
-      EEPROM.put(POS_FARBE1, _Farbe1);
-      EEPROM.put(POS_FARBE2, _Farbe2);
-      EEPROM.commit();
       break;
     case Verlauf2:
       break;
@@ -452,9 +422,6 @@ void LichtModi::Minus() {
 
 void LichtModi::Set_Helligkeit(uint8_t h, bool commit) {
   _Helligkeit = h;
-  EEPROM.put(POS_HELLIGKEIT, _Helligkeit);
-  if (commit)
-    EEPROM.commit();
   Status_Timer = millis() + STATUS_DAUER;
 }
 
@@ -465,9 +432,6 @@ void LichtModi::Set_Farbe1(uint32_t f, bool commit) {
   fg =  ((_Farbe1 >> 8) & 0xff) / 255.;
   fb =  ((_Farbe1) & 0xff) / 255.;
   RGBtoHSV(fr, fg, fb, _h1, _s1, _v1);
-  EEPROM.put(POS_FARBE1, _Farbe1);
-  if (commit)
-    EEPROM.commit();
   Status_Timer = millis() + STATUS_DAUER;
 }
 
@@ -478,36 +442,24 @@ void LichtModi::Set_Farbe2(uint32_t f, bool commit) {
   fg =  ((_Farbe2 >> 8) & 0xff) / 255.;
   fb =  ((_Farbe2) & 0xff) / 255.;
   RGBtoHSV(fr, fg, fb, _h2, _s2, _v2);
-  EEPROM.put(POS_FARBE2, _Farbe2);
-  if (commit)
-    EEPROM.commit();
   Status_Timer = millis() + STATUS_DAUER;
 }
 
 void LichtModi::Set_Speed(uint16_t s, bool commit) {
   _Speed = s;
-  EEPROM.put(POS_SPEED, _Speed);
-  if (commit)
-    EEPROM.commit();
   Status_Timer = millis() + STATUS_DAUER;
 }
 
 void LichtModi::Set_n_Leds(uint16_t n, bool commit) {
   _n_Leds = n;
-  EEPROM.put(POS_N_LEDS, _n_Leds);
-  if (commit)
-    EEPROM.commit();
 }
 
 void LichtModi::Set_Brightness(uint8_t b, bool commit) {
   _Brightness = b;
-  EEPROM.put(POS_BRIGHTNESS, _Brightness);
-  if (commit)
-    EEPROM.commit();
 }
 
 void LichtModi::Commit() {
-  EEPROM.commit();
+  _E_Master.Tick(true);
 }
 
 LichtModi::Modi LichtModi::Get_Modus() {
@@ -616,7 +568,7 @@ uint8_t LichtModi::Status_Verlauf() {
   if (millis() < Status_Timer) {
     bool blink_aus;
     if (_Speed > 2)
-      blink_aus = ( millis() % (10*_Speed)) > (_Speed * 5);
+      blink_aus = ( millis() % (10 * _Speed)) > (_Speed * 5);
     else
       blink_aus = false;
     Indikator(4, 32, 32, 32, 0, blink_aus, (PlusMinus_Mode == 0));

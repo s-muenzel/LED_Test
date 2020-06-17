@@ -3,15 +3,17 @@
 
 #include <EEPROM.h>
 
+#include "main.h"
+
 #define EEPROM_WRITE_TIMER 5000
 
 class EEPROM_Master;
 
 class Persistent {
   public:
-    Persistent(EEPROM_Master*m) {
+    Persistent() {
       _p = 0;
-      _master = m;
+      _master = NULL;
     };
     virtual void Save();
     virtual void Load();
@@ -57,7 +59,9 @@ class EEPROM_Master {
     void Dirty() {
       next_save = millis() + EEPROM_WRITE_TIMER;
     }
-    void Tick() {
+    void Tick(bool now = false) {
+      if (now)
+        next_save = 1;
       if ((next_save != 0) && (next_save < millis())) {
         Eintrag *tmp = _Liste;
         while (tmp != NULL) {
@@ -81,15 +85,20 @@ class EEPROM_Master {
 
 template <class p_typ> class Persist : Persistent {
   public:
-    Persist(EEPROM_Master * m, p_typ d = 0): Persistent(m) {
+    Persist() {
+    };
+    void Init(EEPROM_Master * m, p_typ d = 0) {
+      _master = m;
       _v = _d = d;
       _p = m->add(this, sizeof(_v));
     };
     void Save() {
       EEPROM.put(_p, _v);
+      D_PRINTF("Speichere an Stelle %x ",_p); D_PRINTLN(_v);
     };
     void Load() {
       EEPROM.get(_p, _v);
+      D_PRINTF("Lade von Stelle %x ",_p); D_PRINTLN(_v);
     };
     void Reset() {
       _v = _d;
@@ -105,116 +114,5 @@ template <class p_typ> class Persist : Persistent {
     p_typ _v; // actual
     p_typ _d; // default
 };
-
-
-#if 0
-class P_uint8_t : Persistent {
-  public:
-    P_uint8_t(EEPROM_Master*m, uint8_t d = 0): Persistent(m) {
-      _v = _d = d;
-      _p = m->add(this, sizeof(_v));
-    };
-    void Save() {
-      EEPROM.put(_p, _v);
-    };
-    void Load() {
-      EEPROM.get(_p, _v);
-    };
-    void Reset() {
-      _v = _d;
-    }
-    void operator=(uint8_t v) {
-      _v = v;
-      _master->Dirty();
-    };
-    operator uint8_t() {
-      return _v;
-    };
-  protected:
-    uint8_t _v; // actual
-    uint8_t _d; // default
-};
-
-class P_uint16_t : Persistent {
-  public:
-    P_uint16_t(EEPROM_Master*m, uint8_t d = 0): Persistent(m) {
-      _v = _d = d;
-      _p = m->add(this, sizeof(_v));
-    };
-    void Save() {
-      EEPROM.put(_p, _v);
-    };
-    void Load() {
-      EEPROM.get(_p, _v);
-    };
-    void Reset() {
-      _v = _d;
-    }
-    void operator=(uint8_t v) {
-      _v = v;
-      _master->Dirty();
-    };
-    operator uint16_t() {
-      return _v;
-    };
-  protected:
-    uint16_t _v;
-    uint16_t _d;
-};
-
-class P_uint32_t : Persistent {
-  public:
-    P_uint32_t(EEPROM_Master*m, uint8_t d = 0): Persistent(m) {
-      _v = _d = d;
-      _p = m->add(this, sizeof(_v));
-    };
-    void Save() {
-      EEPROM.put(_p, _v);
-    };
-    void Load() {
-      EEPROM.get(_p, _v);
-    };
-    void Reset() {
-      _v = _d;
-    }
-    void operator=(uint8_t v) {
-      _v = v;
-      _master->Dirty();
-    };
-    operator uint32_t() {
-      return _v;
-    };
-  protected:
-    uint32_t _v;
-    uint32_t _d;
-};
-
-class P_float : Persistent {
-  public:
-    P_float(EEPROM_Master*m, uint8_t d = 0): Persistent(m) {
-      _v = _d = d;
-      _p = m->add(this, sizeof(_v));
-    };
-    void Save() {
-      EEPROM.put(_p, _v);
-    };
-    void Load() {
-      EEPROM.get(_p, _v);
-    };
-    void Reset() {
-      _v = _d;
-    }
-    void operator=(uint8_t v) {
-      _v = v;
-      _master->Dirty();
-    };
-    operator float() {
-      return _v;
-    };
-  protected:
-    float _v;
-    float _d;
-};
-#endif // 0
 
 #endif // _Persistenz

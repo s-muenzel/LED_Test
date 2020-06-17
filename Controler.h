@@ -3,6 +3,8 @@
 
 #include "Persistenz.h"
 
+EEPROM_Master _E_Master;
+
 class LichtModi {
   public:
     LichtModi();
@@ -41,27 +43,18 @@ class LichtModi {
 
     // Persistent Data
     Modi _Modus;
-#if 1
-uint8_t _Helligkeit;
-    uint32_t _Farbe1;
-    float _h1, _s1, _v1;
-    uint32_t _Farbe2;
-    float _h2, _s2, _v2;
-    uint16_t _Speed;
 
-    uint16_t _n_Leds;
-    uint8_t _Brightness;
-#else // 0
-    uint8_t _Helligkeit;
-    uint32_t _Farbe1;
-    float _h1, _s1, _v1;
-    uint32_t _Farbe2;
-    float _h2, _s2, _v2;
-    uint16_t _Speed;
+    Persist<float> _Version;
+    Persist<uint8_t> _Helligkeit;
+    Persist<uint32_t> _Farbe1;
+    Persist<uint32_t> _Farbe2;
+    Persist<uint16_t> _Speed;
 
-    uint16_t _n_Leds;
-    uint8_t _Brightness;
-#endif // 0
+    Persist<uint16_t> _n_Leds;
+    Persist<uint8_t> _Brightness;
+    float _h1, _s1, _v1;
+    float _h2, _s2, _v2;
+
     // Transient Data
     uint8_t PlusMinus_Mode;
     uint32_t Status_Timer;
