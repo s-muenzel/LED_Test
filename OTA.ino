@@ -6,8 +6,11 @@
 #include "OTA.h"
 #include "Zugangsinfo.h"
 
+bool ___OTA_Laeuft;
+
 OTA::OTA() {
   _OTA_An = false;
+  ___OTA_Laeuft = false;
 }
 
 void OTA::Beginn() {
@@ -22,10 +25,12 @@ void OTA::Beginn() {
   ArduinoOTA.setPasswordHash(ota_hash);
   ArduinoOTA.setRebootOnSuccess(true);
   ArduinoOTA.onStart([]() {
+    ___OTA_Laeuft = true;
     D_PRINTLN("Start updating ");
   });
   ArduinoOTA.onEnd([]() {
     D_PRINTLN("\nEnd");
+    ___OTA_Laeuft = false;
   });
   ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
     D_PRINTF("Progress: %u%%\r", (progress / (total / 100)));
@@ -43,6 +48,7 @@ void OTA::Beginn() {
     } else if (error == OTA_END_ERROR) {
       D_PRINTLN("End Failed");
     }
+    ___OTA_Laeuft = false;
   });
 
 }
@@ -50,10 +56,14 @@ void OTA::Beginn() {
 void OTA::Bereit() {
   _OTA_An = true;
   ArduinoOTA.begin();
-};
+}
 
 void OTA::Tick() {
   if (_OTA_An) {
     ArduinoOTA.handle();
   }
-};
+}
+
+bool OTA::Laeuft() {
+  return ___OTA_Laeuft;
+}

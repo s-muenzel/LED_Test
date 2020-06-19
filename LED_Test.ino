@@ -5,7 +5,7 @@
 
 #include "Zugangsinfo.h"
 #include "main.h"
-//#include "OTA.h"
+#include "OTA.h"
 #include "WebS.h"
 #include "Controler.h"
 #include "Knopf.h"
@@ -15,41 +15,52 @@ LichtModi __Modus;
 WebS __WebS;
 Knopf __Knopf;
 Netzwerk __Netzwerk;
-///OTA __OTA;
+OTA __OTA;
 
 void setup() {
   // LEDs konfigurieren
-  pinMode(LED_BUILTIN, OUTPUT);
+  //  pinMode(LED_BUILTIN, OUTPUT);
 
   // Seriellen Output enablen
-  D_BEGIN(115200);
-  delay(5000);
-  D_PRINT("Starte...");
+  D_BEGIN(57600);
+  //delay(5000);
+  D_PRINTLN("Starte...");
 
   __Modus.Beginn();
-  D_PRINT(" LEDs ok");
+  D_PRINTLN("---------- LEDs ");
 
   __Netzwerk.Beginn();
-  D_PRINT(" Wifi ok");
+  __Netzwerk.Start();
+  D_PRINTLN("---------- Wifi ");
 
   __WebS.Beginn();
-  D_PRINT(" Webserver laeuft");
+  D_PRINTLN("---------- Webserver ");
 
   // OTA Initialisieren
-  ///  __OTA.Beginn();
-  ///  __OTA.Bereit();
-  ///  D_PRINT(" OTA vorbereitet");
+  __OTA.Beginn();
+  __OTA.Bereit();
+  D_PRINTLN("---------- OTA ");
 
   // Knopf Initialisieren
   __Knopf.Beginn();
   __Knopf.Zaehler(0);
-  D_PRINTF(" Knopf vorbereitet");
+  D_PRINTLN("---------- Knopf ");
+
+  D_PRINTLN("setup fertig");
 }
 
 
-unsigned long last_led_update = 0;
 int32_t last_decoder_val = 0;
 void loop() {
+  __Netzwerk.Tick();
+  if (__Netzwerk.istVerbunden()) {
+    if (__OTA.Laeuft()) // Falls ein Netzwerk-Update laeuft, mach nichts anderes
+      return;
+    __OTA.Tick();
+    __WebS.Tick();
+  }
+  __Modus.Tick();
+
   switch (__Knopf.Status()) {
     case Knopf::kurz: { // Knopf gedrückt
         D_PRINTLN("Knopf kurz");
@@ -66,9 +77,9 @@ void loop() {
         last_decoder_val = z;
         break;
       }
-    case Knopf::wert_kurz: {  // Knopf gedreht
+    case Knopf::wert_kurz: {  // Knopf gedrueckt und gedreht
         int32_t z = __Knopf.Zaehler();
-//        D_PRINTF("Encoder=<% 3d> \n", z);
+        D_PRINTF("Encoder=<% 3d> gedrueckt\n", z);
         if (z > last_decoder_val)
           __Modus.Next_Modus();
         else
@@ -77,10 +88,11 @@ void loop() {
         break;
       }
     case Knopf::lang: {
-        D_PRINTF("lang WiFi an / aus\n");
         if (__Netzwerk.istAn()) {
+          D_PRINTLN("lang: schalte WiFi aus");
           __Netzwerk.Stop();
         } else {
+          D_PRINTLN("lang: schalte WiFi an");
           __Netzwerk.Start();
         }
         break;
@@ -88,18 +100,5 @@ void loop() {
     case Knopf::nix:
     default:
       break;
-  }
-
-  if (millis() - last_led_update > 50) { // alle 20ms LEDs ansteuern (--> 20Hz)
-    delay(1); // --> gibt kurz die Kontrolle ab, dann sind Hintergrundsaufgaben seltener im Weg
-    __Modus.Tick();
-    last_led_update = millis();
-  }
-
-  __Netzwerk.Tick();
-
-  if (__Netzwerk.istVerbunden()) {
-    __WebS.Tick();
-    ///    __OTA.Tick();
   }
 }

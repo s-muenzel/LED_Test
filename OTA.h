@@ -9,10 +9,12 @@ class OTA {
     void Bereit();
 
     void Tick();
+    bool Laeuft();
 
   private:
 
     bool _OTA_An; // Wurde OTA schon "angeschltet"
+//    bool _OTA_Laeuft; // Static, da in Lambda-Funktionen Zugriff erfolgt
 };
 
 #endif // _OTA

@@ -376,7 +376,6 @@ void WebS::Beginn() {
       entry = dir.openNextFile();
     }
 #endif // ESP32
-    D_PRINTF("\n");
   }
 #endif // DEBUG_SERIAL
 

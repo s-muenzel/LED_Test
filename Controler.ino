@@ -19,6 +19,7 @@ LED_Streifen _Streifen;
 LichtModi::LichtModi() {
   PlusMinus_Mode = 0;
   Status_Timer = 0;
+  last_led_update = 0xFFFFFF00;
 }
 
 void LichtModi::Beginn() {
@@ -40,6 +41,8 @@ void LichtModi::Beginn() {
   Set_Farbe2(_Farbe2);
 
   _Streifen.Beginn(_n_Leds, _Brightness);
+
+  last_led_update = 0;
   D_PRINTLN("ENDE LichtModi");
 }
 
@@ -49,31 +52,35 @@ void LichtModi::Bereit() {
 
 void LichtModi::Tick() {
   _E_Master.Tick();
-  uint8_t n_status_pixel;
-  switch (_Modus) {
-    default:
-    case Aus:
-      n_status_pixel = Status_Aus();
-      Tick_Aus(n_status_pixel);
-      break;
-    case Weiss:
-      n_status_pixel = Status_Weiss();
-      Tick_Weiss(n_status_pixel);
-      break;
-    case Farbe:
-      n_status_pixel = Status_Farbe();
-      Tick_Farbe(n_status_pixel);
-      break;
-    case Verlauf:
-      n_status_pixel = Status_Verlauf();
-      Tick_Verlauf(n_status_pixel);
-      break;
-    case Verlauf2:
-      n_status_pixel = Status_Verlauf2();
-      Tick_Verlauf2(n_status_pixel);
-      break;
+  if (millis() > last_led_update + 50 ) { // alle 20ms LEDs ansteuern (--> 20Hz)
+    delay(1); // --> gibt kurz die Kontrolle ab, dann sind Hintergrundsaufgaben seltener im Weg
+    uint8_t n_status_pixel;
+    switch (_Modus) {
+      default:
+      case Aus:
+        n_status_pixel = Status_Aus();
+        Tick_Aus(n_status_pixel);
+        break;
+      case Weiss:
+        n_status_pixel = Status_Weiss();
+        Tick_Weiss(n_status_pixel);
+        break;
+      case Farbe:
+        n_status_pixel = Status_Farbe();
+        Tick_Farbe(n_status_pixel);
+        break;
+      case Verlauf:
+        n_status_pixel = Status_Verlauf();
+        Tick_Verlauf(n_status_pixel);
+        break;
+      case Verlauf2:
+        n_status_pixel = Status_Verlauf2();
+        Tick_Verlauf2(n_status_pixel);
+        break;
+    }
+    _Streifen.Show();
+    last_led_update = millis();
   }
-  _Streifen.Show();
 }
 
 void LichtModi::Set_Modus(Modi mode, bool commit) {

@@ -5,7 +5,8 @@
 
 #include "main.h"
 
-#define EEPROM_WRITE_TIMER 5000
+//#define EEPROM_WRITE_TIMER 6000000 // 100 Minute Timeout :-) , danach speichern
+#define EEPROM_WRITE_TIMER 60000 // eine Minute Timeout, danach speichern
 
 class EEPROM_Master;
 

@@ -58,6 +58,7 @@ class LichtModi {
     // Transient Data
     uint8_t PlusMinus_Mode;
     uint32_t Status_Timer;
+    uint32_t last_led_update;
 
     // Hier die verschiedenen Modi
     void Indikator(uint16_t n, uint8_t r, uint8_t g, uint8_t b, uint8_t w, bool an, bool state);
