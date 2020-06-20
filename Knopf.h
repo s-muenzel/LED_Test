@@ -21,7 +21,6 @@ class Knopf {
 
     void Zaehler(int16_t zaehler);
     int16_t Zaehler();
-    void Zaehlen(bool an);
 
     uint8_t WieLang();
 
@@ -33,7 +32,6 @@ class Knopf {
 
     int16_t _Zaehler;   // Zaehler
 
-    bool    _An;        // Zaehler aktiv / passiv
 };
 
 #endif // _KNOPF

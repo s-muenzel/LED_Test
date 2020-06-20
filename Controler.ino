@@ -239,8 +239,10 @@ void LichtModi::Plus() {
       w2 = (_Farbe2 & 0xff000000) >> 24;
       switch (PlusMinus_Mode) {
         case 0:
+          D_PRINTF("speed von %d ->", (uint16_t)_Speed);
           if (_Speed > 990) _Speed = 1000;
           else _Speed = _Speed + 10;
+          D_PRINTF("%d ", (uint16_t)_Speed);
           break;
         case 1:
           D_PRINTF("r1 von %02x ->", r1);
@@ -367,8 +369,10 @@ void LichtModi::Minus() {
       w2 = (_Farbe2 & 0xff000000) >> 24;
       switch (PlusMinus_Mode) {
         case 0:
+          D_PRINTF("speed von %d ->", (uint16_t)_Speed);
           if (_Speed < 10) _Speed = 0;
           else _Speed = _Speed - 10;
+          D_PRINTF("%d ", (uint16_t)_Speed);
           break;
         case 1:
           D_PRINTF("r1 von %02x ->", r1);
@@ -523,7 +527,7 @@ void LichtModi::Indikator(uint16_t n, uint8_t r, uint8_t g, uint8_t b, uint8_t w
     _Streifen.SetPixelColor(n, r, g, b, w);
   } else {
     if (an) {
-      if ( (r != 0) || (g != 0) || (b != 0)) {
+      if ( (r != 0) || (g != 0) || (b != 0) || (w != 0)) {
         _Streifen.SetPixelColor(n, r, g, b, w);
       } else {
         _Streifen.SetPixelColor(n, 10, 10, 10, 0);
