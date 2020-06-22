@@ -96,7 +96,7 @@ void handleSet_Values() {
   //  String Erg("Werte: ");
   for (int i = 0; i < server.args(); i++) {
     if (server.argName(i) == "Modus") {
-     __Modus.Set_Modus(server.arg(i).c_str());
+      __Modus.Set_Modus(server.arg(i).c_str());
       if (server.arg(i) == "Aus") {
         __Modus.Set_Modus(LichtModi::Aus);
       } else if (server.arg(i) == "Weiss") {
@@ -107,7 +107,7 @@ void handleSet_Values() {
         __Modus.Set_Modus(LichtModi::Verlauf);
       }
     } else if (server.argName(i) == "Helligkeit1") {
-     __Modus.Set_Helligkeit(server.arg(i).toInt());
+      ///     __Modus.Set_Helligkeit(server.arg(i).toInt());
     } else if (server.argName(i) == "Farbe1") {
       uint8_t r = StrToHex(server.arg(i).charAt(1)) * 16;
       r += StrToHex(server.arg(i).charAt(2));
@@ -115,7 +115,7 @@ void handleSet_Values() {
       g += StrToHex(server.arg(i).charAt(4));
       uint8_t b = StrToHex(server.arg(i).charAt(5)) * 16;
       b += StrToHex(server.arg(i).charAt(6));
-     __Modus.Set_Farbe1(r * 256 * 256 + g * 256 + b);
+      ///     __Modus.Set_Farbe1(r * 256 * 256 + g * 256 + b);
     } else if (server.argName(i) == "Farbe2") {
       uint8_t r = StrToHex(server.arg(i).charAt(1)) * 16;
       r += StrToHex(server.arg(i).charAt(2));
@@ -123,12 +123,12 @@ void handleSet_Values() {
       g += StrToHex(server.arg(i).charAt(4));
       uint8_t b = StrToHex(server.arg(i).charAt(5)) * 16;
       b += StrToHex(server.arg(i).charAt(6));
-     __Modus.Set_Farbe2(r * 256 * 256 + g * 256 + b);
+      ///     __Modus.Set_Farbe2(r * 256 * 256 + g * 256 + b);
     } else if (server.argName(i) == "Speed") {
-     __Modus.Set_Speed(server.arg(i).toInt());
+      ///     __Modus.Set_Speed(server.arg(i).toInt());
     }
   }
- __Modus.Commit();
+  __Modus.Commit();
   server.sendHeader("Location", "/Control");
   server.send(303, "text/html", "Location:/Control");
 }
@@ -186,7 +186,8 @@ void handleModiListe() {
            "{\"Modus\":\"Verlauf\", \"H\": \"0\", \"F1\": \"1\", \"F2\": \"1\", \"S\": \"1\" },"\
            "{\"Modus\":\"Verlauf2\", \"H\": \"0\", \"F1\": \"1\", \"F2\": \"1\", \"S\": \"1\" }"\
            "], \"Modus\": \"%s\", \"H\": \"%d\", \"F1\": \"#%06x\", \"F2\": \"#%06x\", \"S\": \"%d\"}",
-           __Modus.Get_Modus_Name(), __Modus.Get_Helligkeit(), __Modus.Get_Farbe1(), __Modus.Get_Farbe2(), __Modus.Get_Speed());
+           ///           __Modus.Get_Modus_Name(), __Modus.Get_Helligkeit(), __Modus.Get_Farbe1(), __Modus.Get_Farbe2(), __Modus.Get_Speed());
+           __Modus.Get_Modus_Name(), "0", "0", "0", "0");
   server.send(200, "application/json", temp);
 }
 
@@ -204,7 +205,7 @@ void handleKontrol() {
 void handleLade_Konfig() {
   char temp[1000];
   snprintf(temp, 1000, "{ \"Admin\": \"%d\", \"N_LEDs\": \"%d\", \"BRIGHT\": \"%d\" }",
-           __Admin_Mode_An ? 1 : 0, __Modus.Get_n_Leds(), __Modus.Get_Brightness());
+           __Admin_Mode_An ? 1 : 0, __Modus.Get_n_Leds(), "0");
   server.send(200, "application/json", temp);
 }
 
@@ -215,15 +216,15 @@ void handleSet_Konfig() {
     if (server.argName(i) == "N_LEDs") {
       msg += "N_LEDs:";
       msg += server.arg(i).toInt();
-     __Modus.Set_n_Leds(server.arg(i).toInt());
+      __Modus.Set_n_Leds(server.arg(i).toInt());
     }
-    if (server.argName(i) == "BRIGHT") {
-      msg += "BRIGHT:";
-      msg += server.arg(i).toInt();
-     __Modus.Set_Brightness(server.arg(i).toInt());
-    }
+//    if (server.argName(i) == "BRIGHT") {
+//      msg += "BRIGHT:";
+//      msg += server.arg(i).toInt();
+//      __Modus.Set_Brightness(server.arg(i).toInt());
+//    }
   }
- __Modus.Commit();
+  __Modus.Commit();
   server.send(200, "text/plain", msg);
   ESP.restart();
 }
@@ -323,95 +324,95 @@ void handleDateien() {
     File entry = dir.openFile("r");
 #endif // ESP8266
 #ifdef ESP32
-  File dir = SPIFFS.open("/");
-  File entry = dir.openNextFile();
-  while (entry) {
-#endif // ESP32
-    if (__Admin_Mode_An) {
-      output += String("<form action='/Loeschen' method='post'>");
-    }
-    output += String("<span><div class='Tag'><span>");
-    output += entry.name() + String("</span><span class='Rechts'>") + formatBytes(entry.size());
-    if (__Admin_Mode_An) {
-      output += String("</span><input type='text' style='display:none' name='datei' value='") + entry.name();
-      output += String("'></div></span><span><input class='button' type='submit' value='l&ouml;schen'></span></form>");
-    } else {
-      output += String("</span></div>");
-    }
-    D_PRINTF("File '%s', Size %d\n", entry.name(), entry.size());
-    entry.close();
-#ifdef ESP32
-    entry = dir.openNextFile();
-#endif // ESP32
-  }
-  output += "</body></html>";
-  server.send(200, "text/html", output);
-}
-///////////
-
-WebS::WebS() {
-  __Admin_Mode_An = false;
-}
-
-void WebS::Beginn() {
-  if (!SPIFFS.begin()) {
-    D_PRINTLN("Failed to mount file system");
-  }
-#ifdef DEBUG_SERIAL
-  {
-#ifdef ESP8266
-    Dir dir = SPIFFS.openDir("/");
-    while (dir.next()) {
-      File entry = dir.openFile("r");
-      String fileName = dir.fileName();
-      size_t fileSize = dir.fileSize();
-      D_PRINTF("FS File: %s, size: %s\n", fileName.c_str(), formatBytes(fileSize).c_str());
-    }
-#endif // ESP8266
-#ifdef ESP32
     File dir = SPIFFS.open("/");
     File entry = dir.openNextFile();
     while (entry) {
-      D_PRINTF("FS File: %s, size: %s\n", entry.name(), formatBytes(entry.size()).c_str());
-      entry = dir.openNextFile();
-    }
 #endif // ESP32
+      if (__Admin_Mode_An) {
+        output += String("<form action='/Loeschen' method='post'>");
+      }
+      output += String("<span><div class='Tag'><span>");
+      output += entry.name() + String("</span><span class='Rechts'>") + formatBytes(entry.size());
+      if (__Admin_Mode_An) {
+        output += String("</span><input type='text' style='display:none' name='datei' value='") + entry.name();
+        output += String("'></div></span><span><input class='button' type='submit' value='l&ouml;schen'></span></form>");
+      } else {
+        output += String("</span></div>");
+      }
+      D_PRINTF("File '%s', Size %d\n", entry.name(), entry.size());
+      entry.close();
+#ifdef ESP32
+      entry = dir.openNextFile();
+#endif // ESP32
+    }
+    output += "</body></html>";
+    server.send(200, "text/html", output);
   }
+  ///////////
+
+  WebS::WebS() {
+    __Admin_Mode_An = false;
+  }
+
+  void WebS::Beginn() {
+    if (!SPIFFS.begin()) {
+      D_PRINTLN("Failed to mount file system");
+    }
+#ifdef DEBUG_SERIAL
+    {
+#ifdef ESP8266
+      Dir dir = SPIFFS.openDir("/");
+      while (dir.next()) {
+        File entry = dir.openFile("r");
+        String fileName = dir.fileName();
+        size_t fileSize = dir.fileSize();
+        D_PRINTF("FS File: %s, size: %s\n", fileName.c_str(), formatBytes(fileSize).c_str());
+      }
+#endif // ESP8266
+#ifdef ESP32
+      File dir = SPIFFS.open("/");
+      File entry = dir.openNextFile();
+      while (entry) {
+        D_PRINTF("FS File: %s, size: %s\n", entry.name(), formatBytes(entry.size()).c_str());
+        entry = dir.openNextFile();
+      }
+#endif // ESP32
+    }
 #endif // DEBUG_SERIAL
 
-  server.on("/",              handleRoot);          // Top - lädt top Seite
-  server.on("/Control",       handleControl);       // Anzeige Auswahl der Modi und Farben
-  server.on("/Set_Values",    handleSet_Values);    // Post-Methode: neue Werte...
-  server.on("/Status",        handleStatus);        // liefert lokale Zeit, Admin- und Aktiv-Status per JSON
-  server.on("/ModiListe",     handleModiListe);     // liefert alle moeglichen Modi, die Sichtbarkeit der Felder und den aktuellen Status
-  server.on("/Kontrol",       handleKontrol);       // Einstellungen (Admin, +Reboot noetig)
-  server.on("/Lade_Konfig",   handleLade_Konfig);   // liefert Admin- und Konfigurationswerte
-  server.on("/Set_Konfig",    handleSet_Konfig);    // Post-Methode: neue Werte, erzwingen Reboot...
-  server.on("/Reset",         handleReset);         // Neustart, nötig wenn z.B. Hostname geändert wurde oder Admin-Mode zurückgesetzt werden soll
-  server.on("/Admin",         handleAdmin);         // Admin-Mode einschalten (erforder Authentifizierung)
+    server.on("/",              handleRoot);          // Top - lädt top Seite
+    server.on("/Control",       handleControl);       // Anzeige Auswahl der Modi und Farben
+    server.on("/Set_Values",    handleSet_Values);    // Post-Methode: neue Werte...
+    server.on("/Status",        handleStatus);        // liefert lokale Zeit, Admin- und Aktiv-Status per JSON
+    server.on("/ModiListe",     handleModiListe);     // liefert alle moeglichen Modi, die Sichtbarkeit der Felder und den aktuellen Status
+    server.on("/Kontrol",       handleKontrol);       // Einstellungen (Admin, +Reboot noetig)
+    server.on("/Lade_Konfig",   handleLade_Konfig);   // liefert Admin- und Konfigurationswerte
+    server.on("/Set_Konfig",    handleSet_Konfig);    // Post-Methode: neue Werte, erzwingen Reboot...
+    server.on("/Reset",         handleReset);         // Neustart, nötig wenn z.B. Hostname geändert wurde oder Admin-Mode zurückgesetzt werden soll
+    server.on("/Admin",         handleAdmin);         // Admin-Mode einschalten (erforder Authentifizierung)
 
-  server.on("/Dateien",       handleDateien);       // Datei-Operationen (upload, delete)
-  server.on("/Loeschen",      handleLoeschen);      // Delete (spezifische Datei)
-  server.on("/Hochladen", HTTP_POST, []() { //first callback is called after the request has ended with all parsed arguments
-    if (__Admin_Mode_An) {
-      server.sendHeader("Location", "/Dateien");
-      server.send(303, "text/html", "Location:/Dateien");
-    } else {
-      server.send(403, "text/plain", "Kein Admin-Mode!");
-    }
-  },  handleHochladen);        //second callback handles file uploads at that location
-  server.on("/favicon.ico",   handleFavIcon);       // liefert das Favicon.ico
-  server.on("/style.css",     handleCSS);           // liefert das Stylesheet
-  server.onNotFound(          handleNotFound);      // Fallback
+    server.on("/Dateien",       handleDateien);       // Datei-Operationen (upload, delete)
+    server.on("/Loeschen",      handleLoeschen);      // Delete (spezifische Datei)
+    server.on("/Hochladen", HTTP_POST, []() { //first callback is called after the request has ended with all parsed arguments
+      if (__Admin_Mode_An) {
+        server.sendHeader("Location", "/Dateien");
+        server.send(303, "text/html", "Location:/Dateien");
+      } else {
+        server.send(403, "text/plain", "Kein Admin-Mode!");
+      }
+    },  handleHochladen);        //second callback handles file uploads at that location
+    server.on("/favicon.ico",   handleFavIcon);       // liefert das Favicon.ico
+    server.on("/style.css",     handleCSS);           // liefert das Stylesheet
+    server.onNotFound(          handleNotFound);      // Fallback
 
-  server.begin();
-}
+    server.begin();
+  }
 
 
-void WebS::Admin_Mode() {
-  __Admin_Mode_An = true;
-}
+  void WebS::Admin_Mode() {
+    __Admin_Mode_An = true;
+  }
 
-void WebS::Tick() {
-  server.handleClient();
-}
+  void WebS::Tick() {
+    server.handleClient();
+  }
