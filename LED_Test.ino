@@ -54,9 +54,9 @@ int32_t last_decoder_val = 0;
 void loop() {
   __Netzwerk.Tick();
   if (__Netzwerk.istVerbunden()) {
+    __OTA.Tick();
     if (__OTA.Laeuft()) // Falls ein Netzwerk-Update laeuft, mach nichts anderes
       return;
-    __OTA.Tick();
     __WebS.Tick();
   }
   __Modus.Tick();

@@ -97,35 +97,11 @@ void handleSet_Values() {
   for (int i = 0; i < server.args(); i++) {
     if (server.argName(i) == "Modus") {
       __Modus.Set_Modus(server.arg(i).c_str());
-      if (server.arg(i) == "Aus") {
-        __Modus.Set_Modus(LichtModi::Aus);
-      } else if (server.arg(i) == "Weiss") {
-        __Modus.Set_Modus(LichtModi::Weiss);
-      } else if (server.arg(i) == "Farbe") {
-        __Modus.Set_Modus(LichtModi::Farbe);
-      } else if (server.arg(i) == "Verlauf") {
-        __Modus.Set_Modus(LichtModi::Verlauf);
-      }
-    } else if (server.argName(i) == "Helligkeit1") {
-      ///     __Modus.Set_Helligkeit(server.arg(i).toInt());
-    } else if (server.argName(i) == "Farbe1") {
-      uint8_t r = StrToHex(server.arg(i).charAt(1)) * 16;
-      r += StrToHex(server.arg(i).charAt(2));
-      uint8_t g = StrToHex(server.arg(i).charAt(3)) * 16;
-      g += StrToHex(server.arg(i).charAt(4));
-      uint8_t b = StrToHex(server.arg(i).charAt(5)) * 16;
-      b += StrToHex(server.arg(i).charAt(6));
-      ///     __Modus.Set_Farbe1(r * 256 * 256 + g * 256 + b);
-    } else if (server.argName(i) == "Farbe2") {
-      uint8_t r = StrToHex(server.arg(i).charAt(1)) * 16;
-      r += StrToHex(server.arg(i).charAt(2));
-      uint8_t g = StrToHex(server.arg(i).charAt(3)) * 16;
-      g += StrToHex(server.arg(i).charAt(4));
-      uint8_t b = StrToHex(server.arg(i).charAt(5)) * 16;
-      b += StrToHex(server.arg(i).charAt(6));
-      ///     __Modus.Set_Farbe2(r * 256 * 256 + g * 256 + b);
-    } else if (server.argName(i) == "Speed") {
-      ///     __Modus.Set_Speed(server.arg(i).toInt());
+    }
+  }
+  for (int i = 0; i < server.args(); i++) {
+    if (server.argName(i) != "Modus") {
+      __Modus.Set_Modus_Param(server.argName(i).c_str(), server.arg(i).c_str());
     }
   }
   __Modus.Commit();
@@ -178,17 +154,36 @@ void handleStatus() {
 }
 
 void handleModiListe() {
-  char temp[1000];
-  snprintf(temp, 1000, "{ \"Modi\":[ "\
-           "{\"Modus\":\"Aus\",   \"H\": \"0\", \"F1\": \"0\", \"F2\": \"0\", \"S\": \"0\" },"\
-           "{\"Modus\":\"Weiss\", \"H\": \"1\", \"F1\": \"0\", \"F2\": \"0\", \"S\": \"0\" },"\
-           "{\"Modus\":\"Farbe\", \"H\": \"0\", \"F1\": \"1\", \"F2\": \"0\", \"S\": \"0\" },"\
-           "{\"Modus\":\"Verlauf\", \"H\": \"0\", \"F1\": \"1\", \"F2\": \"1\", \"S\": \"1\" },"\
-           "{\"Modus\":\"Verlauf2\", \"H\": \"0\", \"F1\": \"1\", \"F2\": \"1\", \"S\": \"1\" }"\
-           "], \"Modus\": \"%s\", \"H\": \"%d\", \"F1\": \"#%06x\", \"F2\": \"#%06x\", \"S\": \"%d\"}",
-           ///           __Modus.Get_Modus_Name(), __Modus.Get_Helligkeit(), __Modus.Get_Farbe1(), __Modus.Get_Farbe2(), __Modus.Get_Speed());
-           __Modus.Get_Modus_Name(), "0", "0", "0", "0");
-  server.send(200, "application/json", temp);
+  D_PRINTLN("handleModiListe");
+  String msg = "{\"Modus\":\"";
+  msg += __Modus.Get_Modus_Name();
+  msg += "\",\"Liste\":[";
+  uint8_t anz_modi = __Modus.Get_Count_of_Modi();
+  if (anz_modi == 0) {
+    msg += "null";
+  } else {
+    for (int i = 0; i < anz_modi; i++) {
+      msg += "{\"Modus\":\"";
+      msg += __Modus.Get_Modus_Name(i);
+      if (i + 1 < anz_modi)
+        msg += "\"},";
+      else
+        msg += "\"}";
+    }
+  }
+  msg += "]}";
+  server.send(200, "application/json", msg);
+}
+
+void handleParamListe() {
+  D_PRINTLN("handleParamListe");
+  for (int i = 0; i < server.args(); i++) {
+    if (server.argName(i) == "Modus") {
+      server.send(200, "application/json", __Modus.Get_Modus_Params(server.arg(i).c_str()));
+      return;
+    }
+  }
+  server.send(404, "text/plain", "Kein Modusnamen gefunden");
 }
 
 void handleKontrol() {
@@ -218,11 +213,11 @@ void handleSet_Konfig() {
       msg += server.arg(i).toInt();
       __Modus.Set_n_Leds(server.arg(i).toInt());
     }
-//    if (server.argName(i) == "BRIGHT") {
-//      msg += "BRIGHT:";
-//      msg += server.arg(i).toInt();
-//      __Modus.Set_Brightness(server.arg(i).toInt());
-//    }
+    //    if (server.argName(i) == "BRIGHT") {
+    //      msg += "BRIGHT:";
+    //      msg += server.arg(i).toInt();
+    //      __Modus.Set_Brightness(server.arg(i).toInt());
+    //    }
   }
   __Modus.Commit();
   server.send(200, "text/plain", msg);
@@ -384,7 +379,8 @@ void handleDateien() {
     server.on("/Control",       handleControl);       // Anzeige Auswahl der Modi und Farben
     server.on("/Set_Values",    handleSet_Values);    // Post-Methode: neue Werte...
     server.on("/Status",        handleStatus);        // liefert lokale Zeit, Admin- und Aktiv-Status per JSON
-    server.on("/ModiListe",     handleModiListe);     // liefert alle moeglichen Modi, die Sichtbarkeit der Felder und den aktuellen Status
+    server.on("/ModiListe",     handleModiListe);     // liefert den aktuellen und alle moeglichen Modi per JSON
+    server.on("/ParamListe",    handleParamListe);    // liefert die für den aktuellen Modus moeglichen Parameter per JSON
     server.on("/Kontrol",       handleKontrol);       // Einstellungen (Admin, +Reboot noetig)
     server.on("/Lade_Konfig",   handleLade_Konfig);   // liefert Admin- und Konfigurationswerte
     server.on("/Set_Konfig",    handleSet_Konfig);    // Post-Methode: neue Werte, erzwingen Reboot...

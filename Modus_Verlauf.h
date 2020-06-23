@@ -21,6 +21,36 @@ class Modus_Verlauf : public LichtModus {
     const char* Name() {
       return "Verlauf";
     }
+    const char* Params() {
+      static char txt[300];
+      sprintf(txt, "{\"Modus\":\"Verlauf\", \"Params\":[{\"Name\":\"Farbe1\",\"Typ\":\"color\",\"Wert\":\"#%06x\"},{\"Name\":\"Farbe2\",\"Typ\":\"color\",\"Wert\":\"#%06x\"},{\"Name\":\"Speed\",\"Typ\":\"range\",\"Wert\":\"%d\",\"Min\":\"0\",\"Max\":\"1000\"}]}",
+              (uint32_t)_Farbe[0], (uint32_t)_Farbe[1], (uint16_t)_Speed);
+      return txt;
+    }
+    void SetParam(const char* name, const char* wert) {
+      if (strcmp(name, "Farbe1") == 0) {
+        D_PRINTF("Verlauf Neue Farbe0 (Farbwert-string):%s", wert);
+        uint32_t f = strtol(wert + 1, 0, 16); // Farben haben ein "#" am Anfang
+        D_PRINTF("Neue Farbe0 (Farbwert-int):0x%08x\n", f);
+        _Farbe[0] = f;
+        D_PRINTF("Verlauf Neue Farbe0: 0x%08x\n", (uint32_t)_Farbe[0]);
+      } else if (strcmp(name, "Farbe2") == 0) {
+        D_PRINTF("Neue Farbe1 (Farbwert-string):%s", wert);
+        uint32_t f = strtol(wert + 1, 0, 16); // Farben haben ein "#" am Anfang
+        D_PRINTF("Verlauf Neue Farbe1 (Farbwert-int):0x%08x\n", f);
+        _Farbe[1] = f;
+        D_PRINTF("Verlauf Neue Farb1e: 0x%08x\n", (uint32_t)_Farbe[1]);
+      } else if (strcmp(name, "Speed") == 0) {
+        D_PRINTF("Neue Speed (string):%s", wert);
+        uint32_t s = atoi(wert);
+        D_PRINTF("Neue Speed (int):%d", s);
+        _Speed = constrain(s, 0, 1000);
+        D_PRINTF("Verlauf Neue Speed: %d\n", (uint16_t)_Speed);
+      } else {
+        D_PRINTF("Farbe: Fehler bei Params: %s - %s\n", name, wert);
+      }
+      return;
+    }
     void Next_PlusMinus() {
       opts = (Optionen)((opts + 1) % opt_max);
     }

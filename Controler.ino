@@ -80,12 +80,14 @@ void LichtModi::Prev_Modus() {
   Set_Modus((Modi)(i % letzter_Modus));
 }
 
-LichtModi::Modi LichtModi::Get_Modus() {
-  return _Modus;
-}
-
-const char* LichtModi::Get_Modus_Name() {
-  return _Modi[_Modus]->Name();
+const char* LichtModi::Get_Modus_Params(const char* mode) {
+  for (int i = Aus; i < letzter_Modus; i++) {
+    if (strcmp(mode, _Modi[i]->Name()) == 0) {
+      return _Modi[i]->Params();
+    }
+  }
+  D_PRINTF("Get_Modus_Params: keinen Modus gefunden  %s\n", mode);
+  return "{\"Modus\":\"FEHLER\",  \"Params\":  [ null ] }";
 }
 
 void LichtModi::Next_PlusMinus() {

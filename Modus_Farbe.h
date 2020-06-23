@@ -14,6 +14,28 @@ class Modus_Farbe : public LichtModus {
     const char* Name() {
       return "Farbe";
     }
+    const char* Params() {
+      static char txt[160];
+      sprintf(txt, "{\"Modus\":\"Farbe\",\"Params\":[{\"Name\":\"Farbe\",\"Typ\":\"color\",\"Wert\":\"#%06x\"},{\"Name\":\"Weiss\",\"Typ\":\"range\",\"Wert\":\"%d\",\"Min\":\"0\",\"Max\":\"255\"}]}", 0xffffff & (uint32_t)_Farbe, (uint32_t)_Farbe >> 24);
+      return txt;
+    }
+    void SetParam(const char* name, const char* wert) {
+      if (strcmp(name, "Farbe") == 0) {
+        D_PRINTF("Neue Farbe (Farbwert-string):%s", wert);
+        uint32_t f = strtol(wert + 1, 0, 16); // Farben haben ein "#" am Anfang
+        D_PRINTF("Neue Farbe (Farbwert-int):0x%08x\n", f);
+        _Farbe = ((uint32_t)_Farbe & 0xff000000) + f;
+        D_PRINTF("Neue Farbe: 0x%08x\n", (uint32_t)_Farbe);
+      } else if (strcmp(name, "Weiss") == 0) {
+        D_PRINTF("Neue Farbe (Weisswert):%s", wert);
+        uint32_t h = atoi(wert);
+        _Farbe = (0x00ffffff & (uint32_t)_Farbe) | (h << 24);
+        D_PRINTF("Neue Farbe: 0x%08x\n", (uint32_t)_Farbe);
+      } else {
+        D_PRINTF("Farbe: Fehler bei Params: %s - %s\n", name, wert);
+      }
+      return;
+    }
     void Next_PlusMinus() {
       opts = (Optionen)((opts + 1) % opt_max);
     }

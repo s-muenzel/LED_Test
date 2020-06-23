@@ -6,90 +6,88 @@
 <meta charset="UTF-8">
 <title>LED Controler - Controler</title>
 <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.5.0/css/all.css" integrity="sha384-B4dIYHKNBt8Bc12p+WXckhzcICo0wtJAoU8YZTY5qE0Id1GSseTk6S+L3BlXeVIU" crossorigin="anonymous"></head>
-<body onload="lade_Werte()">
-<form action="/Set_Values">
-<!-- <form action="/action_page.php"> -->
-  <select onchange="Neuer_Modus()"id="Modus" name="Modus">
-<!--    <option value="Aus">Aus</option>
-    <option value="Weiss">Weiss</option>
-    <option value="Farbe">Farbe</option>
-    <option value="Verlauf">Verlauf</option> -->
+<body onload="lade_Modus()">
+<form id="Form" action="/Set_Values">
+<!-- <form action="/action_page.php">  -->
+  <select onchange="lade_Params()"id="Modus" name="Modus">
   </select>
-  <p id="H1">
-	  Helligkeit: <input name="Helligkeit1" type="range" min="0"  max="255">
+  <p id="Inputs">
+     Fehler
   </p>
-  <p id="F1">
-	  Farbe: <input name="Farbe1" type="color">
-  </p>
-  <p id="F2">
-	  Farbe: <input name="Farbe2" type="color">
-  </p>
-  <p id="S">
-	  Speed: <input name="Speed" type="range" min="0"  max="1000">
-  </p>
-  <br><br>
   <input type="submit">
 </form>
 <script>
 var Modus = document.getElementById("Modus");
-var H1 =  document.getElementById("H1");
-var F1 =  document.getElementById("F1");
-var F2 =  document.getElementById("F2");
-var S  =  document.getElementById("S");
-var xmthldummy = '{ "Modi":[ {"Modus":"Aus", "H": "0", "F1": "0", "F2": "0", "S": "0" },{"Modus":"Weiss", "H": "1", "F1": "0", "F2": "0", "S": "0"  }, {"Modus":"Farbe", "H": "0", "F1": "1", "F2": "0", "S": "0"  },{"Modus":"Verlauf", "H": "0", "F1": "1", "F2": "1", "S": "1" }],"Modus":"Weiss", "H": "64", "F1": "#123456", "F2": "#f0f0f0", "S": "100"  }';
+var Inputs = document.getElementById("Inputs");
+
+var xmthlModiDummy = '{"Modus":"Weiss","Liste":[{"Modus":"Aus"},{"Modus":"Weiss"},{"Modus":"Farbe"},{"Modus":"Verlauf"}]}';
 var ModiListe;
-var xhttp = new XMLHttpRequest();
-  xhttp.onreadystatechange = function() {
+var xhttpModi = new XMLHttpRequest();
+  xhttpModi.onreadystatechange = function() {
     if (this.readyState == 4) {
 		if( this.status == 404) { 
-			ModiListe = JSON.parse(xmthldummy);
+			ModiListe = JSON.parse(xmthlModiDummy);
         }
 		if( this.status == 200) {
 			ModiListe = JSON.parse(this.responseText);
 		}
       var option;
-      for (i = 0; i < ModiListe.Modi.length; i++) {
+      for (i = 0; i < ModiListe.Liste.length; i++) {
         option = document.createElement("option");
-        option.text = ModiListe.Modi[i].Modus;
+        option.text = ModiListe.Liste[i].Modus;
         Modus.add(option);
       } 
 	}
     Modus.value = ModiListe.Modus;
-    H1.children[0].value = ModiListe.H;
-    F1.children[0].value = ModiListe.F1;
-    F2.children[0].value = ModiListe.F2;
-    S.children[0].value = ModiListe.S;
-    Neuer_Modus();
+    lade_Params();
 }
-function Neuer_Modus() {
-  for (i = 0; i < ModiListe.Modi.length; i++) {
-    if(ModiListe.Modi[i].Modus == Modus.value)  {
-      if(ModiListe.Modi[i].H == "0") {
-          H1.style.display = "none";
-      } else {
-          H1.style.display = "inline";
-      }
-      if(ModiListe.Modi[i].F1 == "0") {
-          F1.style.display = "none";
-      } else {
-          F1.style.display = "inline";
-      }
-      if(ModiListe.Modi[i].F2 == "0") {
-          F2.style.display = "none";
-      } else {
-          F2.style.display = "inline";
-      }
-      if(ModiListe.Modi[i].S == "0") {
-          S.style.display = "none";
-      } else {
-          S.style.display = "inline";
-      }
-    }
-  }
+function lade_Modus() {
+  xhttpModi.open("GET", "/ModiListe", true);
+  xhttpModi.send();
 }
-function lade_Werte() {
-  xhttp.open("GET", "/ModiListe", true);
-  xhttp.send();
+
+var xmthlParamDummy = '{"Modus":"Weiss","Params":[{"Name":"Farbe","Typ":"color","Wert":"#abcded"}]}';
+var xhttpParams = new XMLHttpRequest();
+  xhttpParams.onreadystatechange = function() {
+	var ParamListe;
+    if (this.readyState == 4) {
+		if( this.status == 404) {
+			ParamListe = JSON.parse(xmthlParamDummy);
+        }
+		if( this.status == 200) {
+			ParamListe = JSON.parse(this.responseText);
+		}
+		try {
+			var Kid;
+			var NextKid;
+			while(true) {
+				Kid = Inputs.firstChild;
+				Inputs.removeChild(Kid);
+				Kid.remove();
+			}
+		}
+		catch  {}
+	
+      for (i = 0; i < ParamListe.Params.length; i++) {
+	      var input;
+        input = document.createElement("input");
+		input.name = ParamListe.Params[i].Name;
+        input.type = ParamListe.Params[i].Typ;
+        input.value = ParamListe.Params[i].Wert;
+        input.min = ParamListe.Params[i].Min;
+        input.max = ParamListe.Params[i].Max;
+        input.value = ParamListe.Params[i].Wert;
+        var para = document.createElement("p");
+		var node = document.createTextNode(ParamListe.Params[i].Name);
+		para.appendChild(node);
+        para.appendChild(input);
+        Inputs.appendChild(para);
+      } 
+	}
+}
+function lade_Params() {
+  xhttpParams.open("GET", "/ParamListe?Modus="+Modus.value, true);
+  xhttpParams.send();
 }
 </script>
 </body>

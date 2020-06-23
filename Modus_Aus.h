@@ -9,6 +9,13 @@ class Modus_Aus : public LichtModus {
     const char* Name() {
       return "Aus";
     }
+    const char* Params() {
+      return "{\"Modus\":\"Aus\",  \"Params\":  [ null ] }";
+    }
+    void SetParam(const char* name, const char* wert) {
+      D_PRINTF("Modus Aus: Fehler bei Param: %s - %s\n", name, wert);
+      return;
+    }
     void Next_PlusMinus() {
     }
     void Plus() {

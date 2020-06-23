@@ -18,6 +18,13 @@ class Modus_Verlauf2 : public LichtModus {
     const char* Name() {
       return "Verlauf2";
     }
+    const char* Params() {
+      return "{\"Modus\":\"Verlauf2\",  \"Params\":  [ null ] }";
+    }
+    void SetParam(const char* name, const char* wert) {
+      D_PRINTF("Modus Verlauf2: TODO Param: %s - %s\n", name, wert);
+      return;
+    }
     void Next_PlusMinus() {
     }
     void Plus() {

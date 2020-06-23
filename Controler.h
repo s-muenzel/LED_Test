@@ -14,6 +14,8 @@ class LichtModus {
       _streifen = streifen;
     };
     virtual const char* Name();
+    virtual const char* Params();
+    virtual void SetParam(const char* name, const char* wert);
     virtual void Next_PlusMinus();
     virtual void Plus();
     virtual void Minus();
@@ -62,8 +64,25 @@ class LichtModi {
     void Set_Modus(const char*mode);
     void Next_Modus();
     void Prev_Modus();
-    Modi Get_Modus();
-    const char* Get_Modus_Name();
+    Modi Get_Modus() {
+      return _Modus;
+    };
+    const char* Get_Modus_Name() {
+      return _Modi[_Modus]->Name();
+    };
+    uint8_t Get_Count_of_Modi() {
+      return (uint8_t)((Modi)letzter_Modus);
+    }
+    const char* Get_Modus_Name(uint8_t n) {
+      return _Modi[n]->Name();
+    }
+    const char* Get_Modus_Params() {
+      return _Modi[_Modus]->Params();
+    }
+    void Set_Modus_Param(const char* name, const char* wert) {
+      _Modi[_Modus]->SetParam(name, wert);
+    }
+    const char* Get_Modus_Params(const char*mode);
     void Next_PlusMinus();
     void Plus();
     void Minus();
